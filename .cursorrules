@@ -1,0 +1,30 @@
+# .cursorrules — Module 19: RWA Tokenization & Compliance Protocols
+
+## MODULE OVERVIEW
+Focus on building tokenized Real-World Asset (RWA) systems, permissioned transfer compliance engines (ERC-3643 / T-REX standard), identity registry verification, and automated yield distribution using Foundry and Solidity 0.8.24.
+
+---
+
+## 1. TECHNICAL CONSTRAINTS & STACK
+
+- **Compiler Version:** Strictly `pragma solidity 0.8.24;` (no floating pragmas).
+- **Tooling:** Foundry (`forge` for unit testing, compliance verification checks, and gas tracking).
+- **Standards:** ERC-3643 (Permissioned Tokens), ONCHAINID / Identity Registry interfaces, and ERC-20 compliant restricted transfers.
+
+---
+
+## 2. CODING & SECURITY RULES
+
+- **Identity & Compliance Verification:** Every `transfer` and `transferFrom` MUST execute an `isVerified(address)` check against an `IdentityRegistry` before moving tokens (`error IdentityNotVerified()`).
+- **Forced Transfers & Asset Recovery:** Implement an authorized agent/compliance manager role capable of executing forced transfers for legal recovery or court-ordered asset frozen scenarios.
+- **Automated Dividend Distribution:** Implement a snapshot-based or pro-rata yield distribution contract allowing token holders to claim USDC/USDT dividends based on their historical holdings.
+- **Pause & Lock Mechanisms:** Support modular token freezing (individual investor address lock or global token pause) without corrupting total supply accounting.
+
+---
+
+## 3. TESTING REQUIREMENTS
+
+- **Compliance Failure Tests:** Assert that transfer attempts between unverified/non-KYC addresses strictly revert.
+- **Yield Claim Accuracy Tests:** Test multi-investor yield distributions under varying ownership proportions to ensure no dust tokens or excess claims occur.
+- **Forced Recovery Tests:** Assert that compliance agents can recover tokens from lost/frozen wallets to new verified identities.
+- **Fuzzing Transfer Locks:** Fuzz partial wallet freezes and compliance rule updates to ensure asset accounting remains fully solvent.
