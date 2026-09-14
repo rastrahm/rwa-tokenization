@@ -9,7 +9,7 @@ import {IRWAToken} from "./interfaces/IRWAToken.sol";
 import {RWAErrors} from "./errors/RWAErrors.sol";
 
 /// @title RWAToken
-/// @notice ERC-20 permissioned: KYC, pause, freeze y `forcedTransfer` de recuperación.
+/// @notice ERC-20 permissioned: KYC, pause, freeze, forcedTransfer y snapshots para dividendos.
 /// @dev Compliance modular se añade en fase COMP.
 contract RWAToken is ERC20, AccessControl, IRWAToken {
     bytes32 public constant AGENT_ROLE = keccak256("AGENT_ROLE");
@@ -21,6 +21,16 @@ contract RWAToken is ERC20, AccessControl, IRWAToken {
     mapping(address account => bool frozen) private _frozen;
     mapping(address account => uint256 amount) private _frozenTokens;
 
+    /// @dev Snapshots estilo ERC20Snapshot (OZ v4) — OZ v5 ya no lo incluye.
+    struct Snapshots {
+        uint256[] ids;
+        uint256[] values;
+    }
+
+    uint256 private _currentSnapshotId;
+    mapping(address account => Snapshots) private _accountBalanceSnapshots;
+    Snapshots private _totalSupplySnapshots;
+
     event IdentityRegistrySet(address indexed identityRegistry);
     event AgentAdded(address indexed agent);
     event AgentRemoved(address indexed agent);
@@ -30,6 +40,7 @@ contract RWAToken is ERC20, AccessControl, IRWAToken {
     event TokensFrozen(address indexed account, uint256 amount);
     event TokensUnfrozen(address indexed account, uint256 amount);
     event ForcedTransfer(address indexed from, address indexed to, uint256 amount, address indexed agent);
+    event Snapshot(uint256 indexed snapshotId);
 
     /// @param name_ Nombre del token.
     /// @param symbol_ Símbolo del token.
@@ -183,6 +194,29 @@ contract RWAToken is ERC20, AccessControl, IRWAToken {
         return true;
     }
 
+    /// @inheritdoc IRWAToken
+    function snapshot() external onlyRole(AGENT_ROLE) returns (uint256 snapshotId) {
+        snapshotId = ++_currentSnapshotId;
+        emit Snapshot(snapshotId);
+    }
+
+    /// @inheritdoc IRWAToken
+    function currentSnapshotId() external view returns (uint256) {
+        return _currentSnapshotId;
+    }
+
+    /// @inheritdoc IRWAToken
+    function balanceOfAt(address account, uint256 snapshotId) public view returns (uint256) {
+        (bool snapshotted, uint256 value) = _valueAt(snapshotId, _accountBalanceSnapshots[account]);
+        return snapshotted ? value : balanceOf(account);
+    }
+
+    /// @inheritdoc IRWAToken
+    function totalSupplyAt(uint256 snapshotId) public view returns (uint256) {
+        (bool snapshotted, uint256 value) = _valueAt(snapshotId, _totalSupplySnapshots);
+        return snapshotted ? value : totalSupply();
+    }
+
     /// @dev Gate KYC + pause + freeze en transfers normales. `forcedTransfer` usa el flag interno.
     function _update(address from, address to, uint256 value) internal virtual override {
         if (from != address(0) && to != address(0) && !_forcedTransferInProgress) {
@@ -193,6 +227,10 @@ contract RWAToken is ERC20, AccessControl, IRWAToken {
             }
             if (value > getFreeBalance(from)) revert RWAErrors.InsufficientUnfrozenBalance();
         }
+
+        if (from != address(0)) _updateAccountSnapshot(from);
+        if (to != address(0)) _updateAccountSnapshot(to);
+        if (from == address(0) || to == address(0)) _updateTotalSupplySnapshot();
 
         super._update(from, to, value);
 
@@ -208,5 +246,53 @@ contract RWAToken is ERC20, AccessControl, IRWAToken {
         if (frozenAmt > bal) {
             _frozenTokens[account] = bal;
         }
+    }
+
+    function _updateAccountSnapshot(address account) private {
+        _updateSnapshot(_accountBalanceSnapshots[account], balanceOf(account));
+    }
+
+    function _updateTotalSupplySnapshot() private {
+        _updateSnapshot(_totalSupplySnapshots, totalSupply());
+    }
+
+    function _updateSnapshot(Snapshots storage snapshots, uint256 currentValue) private {
+        uint256 currentId = _currentSnapshotId;
+        if (currentId == 0) return;
+        if (_lastSnapshotId(snapshots.ids) < currentId) {
+            snapshots.ids.push(currentId);
+            snapshots.values.push(currentValue);
+        }
+    }
+
+    function _lastSnapshotId(uint256[] storage ids) private view returns (uint256) {
+        if (ids.length == 0) return 0;
+        return ids[ids.length - 1];
+    }
+
+    function _valueAt(uint256 snapshotId, Snapshots storage snapshots)
+        private
+        view
+        returns (bool snapshotted, uint256 value)
+    {
+        if (snapshotId == 0 || snapshotId > _currentSnapshotId) revert RWAErrors.InvalidSnapshot();
+
+        uint256 length = snapshots.ids.length;
+        if (length == 0) return (false, 0);
+
+        // Binary search: mayor id <= snapshotId.
+        uint256 low = 0;
+        uint256 high = length;
+        while (low < high) {
+            uint256 mid = (low + high) / 2;
+            if (snapshots.ids[mid] > snapshotId) {
+                high = mid;
+            } else {
+                low = mid + 1;
+            }
+        }
+
+        if (low == 0) return (false, 0);
+        return (true, snapshots.values[low - 1]);
     }
 }

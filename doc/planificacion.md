@@ -1,8 +1,8 @@
 # Planificación — Módulo 19: RWA Tokenization & Compliance Protocols
 
-**Estado:** Fases **IDENT** ✅ + **TOKEN** ✅ + **LOCK** ✅ + **FORCE** ✅ · resto pendiente de autorización.  
+**Estado:** Fases **IDENT** ✅ + **TOKEN** ✅ + **LOCK** ✅ + **FORCE** ✅ + **YIELD** ✅ · resta **COMP** + **SOLV**.  
 **Regla de avance:** no se escribe código de una fase hasta tu autorización explícita (`Autorizo Fase <ID>`).  
-**Suite:** `forge test` → **51 PASS**.  
+**Suite:** `forge test` → **60 PASS**.  
 **Nota de diseño:** las fases **no** siguen el esquema genérico 0–7 de módulos anteriores; se organizan por **dominios de compliance RWA**.
 
 ---
@@ -88,7 +88,7 @@ Stack: **Foundry + Solidity `0.8.24`**. Frontend Next.js queda **fuera de alcanc
 │   ├── TrustedIssuersRegistry.sol
 │   ├── RWAToken.sol                   # ERC-20 permissioned (Fase TOKEN ✅)
 │   ├── ModularCompliance.sol          # (Fase COMP)
-│   ├── DividendDistributor.sol        # (Fase YIELD)
+│   ├── DividendDistributor.sol        # Snapshot → claim USDC (Fase YIELD ✅)
 │   ├── interfaces/
 │   ├── compliance/                    # (Fase COMP)
 │   ├── errors/
@@ -110,8 +110,9 @@ Stack: **Foundry + Solidity `0.8.24`**. Frontend Next.js queda **fuera de alcanc
 | `IdentityRegistry` | Alta/baja de identidades; `isVerified` |
 | `ClaimTopicsRegistry` | Topics KYC requeridos |
 | `TrustedIssuersRegistry` | Emisores de claims confiables |
-| `RWAToken` | ERC-20 permissioned: KYC + pause + freeze total/parcial |
-| `DividendDistributor` | Snapshot → claim stablecoin pro-rata *(pendiente)* |
+| `RWAToken` | ERC-20 permissioned: KYC + pause + freeze + forcedTransfer + snapshots |
+| `DividendDistributor` | Snapshot → claim stablecoin pro-rata |
+| `MockERC20` | USDC/USDT de lab |
 
 ---
 
@@ -131,7 +132,9 @@ error ZeroAmount();
 error AlreadyClaimed();
 error NothingToClaim();
 error InvalidSnapshot();
+error InvalidDistribution();
 error DistributionNotFunded();
+error AlreadyFunded();
 error InvalidCountry();
 error TopicAlreadyExists();
 error TopicDoesNotExist();
@@ -162,11 +165,11 @@ error ClaimTopicNotAllowed();
 | **TOKEN** | `RWAToken` permissioned (transfer gated ERC-3643) | ✅ Completada | ✅ Autorizada |
 | **LOCK** | Pause global + freeze total/parcial | ✅ Completada | ✅ Autorizada |
 | **FORCE** | Agent `forcedTransfer` / asset recovery | ✅ Completada | ✅ Autorizada |
-| **YIELD** | `DividendDistributor` snapshot USDC/USDT | ⏳ Pendiente | ❌ Sin autorizar |
+| **YIELD** | `DividendDistributor` snapshot USDC/USDT | ✅ Completada | ✅ Autorizada |
 | **COMP** | `ModularCompliance` + módulos país / max balance | ⏳ Pendiente | ❌ Sin autorizar |
 | **SOLV** | Suite: compliance fail, yield accuracy, recovery, fuzz locks + Deploy/gas | ⏳ Pendiente | ❌ Sin autorizar |
 
-**Cómo autorizar:** responde en el chat con `Autorizo Fase YIELD` (siguiente recomendada).
+**Cómo autorizar:** responde en el chat con `Autorizo Fase COMP` (siguiente recomendada).
 
 ---
 
@@ -265,7 +268,7 @@ error ClaimTopicNotAllowed();
 
 ---
 
-### Fase YIELD — DividendDistributor
+### Fase YIELD — DividendDistributor ✅
 
 **Objetivo:** holders claim USDC/USDT pro-rata según snapshot histórico.
 
@@ -276,7 +279,14 @@ error ClaimTopicNotAllowed();
 
 **Criterio de salida:** yield claim accuracy tests (sin dust abusivo / excess claim).
 
-**Depende de:** TOKEN (snapshot del token; puede paralelizarse tras TOKEN si LOCK/FORCE aún no autorizados — **solo si lo indicas**).
+**Depende de:** TOKEN.
+
+**Hecho (2026-09-14):**
+- Snapshots lazy en `RWAToken` (estilo ERC20Snapshot; OZ v5 no lo trae): `snapshot`, `balanceOfAt`, `totalSupplyAt`.
+- `DividendDistributor`: create → deposit → claim pro-rata; CEI + `ReentrancyGuardTransient`.
+- `MockERC20` USDC lab (6 decimals).
+- Tests: 60/30/10 exacto, post-snapshot transfer, dust ≤ total, fuzz no over-claim.
+- **`forge test` → 60 PASS**.
 
 ---
 
@@ -317,7 +327,7 @@ error ClaimTopicNotAllowed();
 - [x] Todo `transfer` / `transferFrom` llama `isVerified` → `IdentityNotVerified`
 - [x] Freeze total/parcial y pause sin corromper `totalSupply`
 - [x] Agent puede `forcedTransfer` a identidad verificada
-- [ ] Dividendos snapshot: proporciones correctas, sin over-claim
+- [x] Dividendos snapshot: proporciones correctas, sin over-claim
 - [ ] Compliance modular rechaza transfers no conformes
 - [ ] Fuzz de locks + invariantes de solvencia en verde
 - [ ] CEI + custom errors + NatSpec + solc `0.8.24`
@@ -327,8 +337,8 @@ error ClaimTopicNotAllowed();
 
 ## 9. Próximo paso
 
-**Fases IDENT → FORCE cerradas.** Esperando autorización para continuar.
+**Fases IDENT → YIELD cerradas.** Esperando autorización para continuar.
 
 Respuesta sugerida:
 
-`Autorizo Fase YIELD`
+`Autorizo Fase COMP`
