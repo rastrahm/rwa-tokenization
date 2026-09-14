@@ -7,6 +7,7 @@ library RWAErrors {
     error TransferNotCompliant();
     error WalletFrozen();
     error InsufficientUnfrozenBalance();
+    error InsufficientBalance();
     error TokenPaused();
     error TokenNotPaused();
     error UnauthorizedAgent();
