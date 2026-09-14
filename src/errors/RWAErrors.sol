@@ -8,6 +8,7 @@ library RWAErrors {
     error WalletFrozen();
     error InsufficientUnfrozenBalance();
     error TokenPaused();
+    error TokenNotPaused();
     error UnauthorizedAgent();
     error ZeroAddress();
     error ZeroAmount();
