@@ -1,7 +1,8 @@
 # Planificación — Módulo 19: RWA Tokenization & Compliance Protocols
 
-**Estado:** documentación inicial · **ninguna fase de código autorizada**.  
+**Estado:** Fase **IDENT** ✅ · resto pendiente de autorización.  
 **Regla de avance:** no se escribe código de una fase hasta tu autorización explícita (`Autorizo Fase <ID>`).  
+**Suite:** `forge test` → **17 PASS** (Fase IDENT).  
 **Nota de diseño:** las fases **no** siguen el esquema genérico 0–7 de módulos anteriores; se organizan por **dominios de compliance RWA**.
 
 ---
@@ -81,26 +82,20 @@ Stack: **Foundry + Solidity `0.8.24`**. Frontend Next.js queda **fuera de alcanc
 │   ├── diagrama-de-flujo.md
 │   └── flujograma.md
 ├── src/
-│   ├── RWAToken.sol
-│   ├── IdentityRegistry.sol
+│   ├── Identity.sol                   # ONCHAINID lab (claims por topic)
+│   ├── IdentityRegistry.sol           # isVerified + register/delete
 │   ├── ClaimTopicsRegistry.sol
 │   ├── TrustedIssuersRegistry.sol
-│   ├── ModularCompliance.sol
-│   ├── DividendDistributor.sol
+│   ├── RWAToken.sol                   # (Fase TOKEN)
+│   ├── ModularCompliance.sol          # (Fase COMP)
+│   ├── DividendDistributor.sol        # (Fase YIELD)
 │   ├── interfaces/
-│   ├── compliance/
-│   │   ├── CountryRestrictModule.sol
-│   │   └── MaxBalanceModule.sol
+│   ├── compliance/                    # (Fase COMP)
 │   ├── errors/
 │   │   └── RWAErrors.sol
 │   └── mocks/
-│       └── MockERC20.sol
 ├── test/
 │   ├── IdentityRegistry.t.sol
-│   ├── RWAToken.transfer.t.sol
-│   ├── FreezePause.t.sol
-│   ├── ForcedTransfer.t.sol
-│   ├── DividendDistributor.t.sol
 │   ├── fuzz/
 │   └── invariant/
 └── script/
@@ -111,13 +106,12 @@ Stack: **Foundry + Solidity `0.8.24`**. Frontend Next.js queda **fuera de alcanc
 
 | Artefacto | Responsabilidad |
 |-----------|-----------------|
+| `Identity` | Claims lab (topic → issuer) gestionados por owner |
 | `IdentityRegistry` | Alta/baja de identidades; `isVerified` |
 | `ClaimTopicsRegistry` | Topics KYC requeridos |
 | `TrustedIssuersRegistry` | Emisores de claims confiables |
-| `ModularCompliance` | Agrega módulos `canTransfer` |
-| `RWAToken` | ERC-20 permissioned + freeze + pause + forced |
-| `DividendDistributor` | Snapshot → claim stablecoin pro-rata |
-| `MockERC20` | USDC/USDT de lab |
+| `RWAToken` | ERC-20 permissioned + freeze + pause + forced *(pendiente)* |
+| `DividendDistributor` | Snapshot → claim stablecoin pro-rata *(pendiente)* |
 
 ---
 
@@ -137,6 +131,13 @@ error NothingToClaim();
 error InvalidSnapshot();
 error DistributionNotFunded();
 error InvalidCountry();
+error TopicAlreadyExists();
+error TopicDoesNotExist();
+error IssuerAlreadyExists();
+error IssuerDoesNotExist();
+error IdentityAlreadyRegistered();
+error IdentityNotRegistered();
+error ClaimTopicNotAllowed();
 ```
 
 ---
@@ -155,7 +156,7 @@ error InvalidCountry();
 
 | Fase | Nombre | Estado | Autorización |
 |------|--------|--------|--------------|
-| **IDENT** | Scaffold Foundry + Identity Registry (`isVerified`) | ⏳ Pendiente | ❌ Sin autorizar |
+| **IDENT** | Scaffold Foundry + Identity Registry (`isVerified`) | ✅ Completada | ✅ Autorizada |
 | **TOKEN** | `RWAToken` permissioned (transfer gated ERC-3643) | ⏳ Pendiente | ❌ Sin autorizar |
 | **LOCK** | Pause global + freeze total/parcial | ⏳ Pendiente | ❌ Sin autorizar |
 | **FORCE** | Agent `forcedTransfer` / asset recovery | ⏳ Pendiente | ❌ Sin autorizar |
@@ -163,13 +164,13 @@ error InvalidCountry();
 | **COMP** | `ModularCompliance` + módulos país / max balance | ⏳ Pendiente | ❌ Sin autorizar |
 | **SOLV** | Suite: compliance fail, yield accuracy, recovery, fuzz locks + Deploy/gas | ⏳ Pendiente | ❌ Sin autorizar |
 
-**Cómo autorizar:** responde en el chat con `Autorizo Fase IDENT` (o el ID que corresponda). Puedes autorizar de a una; el orden recomendado es el del tablero.
+**Cómo autorizar:** responde en el chat con `Autorizo Fase TOKEN` (siguiente recomendada).
 
 ---
 
 ## 7. Detalle por fase
 
-### Fase IDENT — Scaffold + Identity Registry
+### Fase IDENT — Scaffold + Identity Registry ✅
 
 **Objetivo:** repo Foundry compilable e identidad on-chain con `isVerified` confiable.
 
@@ -182,6 +183,15 @@ error InvalidCountry();
 **Criterio de salida:** `forge build` + tests de identity en verde.
 
 **Depende de:** nada (primera fase de código).
+
+**Hecho (2026-09-14):**
+- `foundry.toml` (solc `0.8.24`, Cancun, optimizer `10_000`, `via_ir`, fuzz `runs = 1000`).
+- `remappings.txt`; deps en `lib/` (forge-std, OpenZeppelin **v5.2.0**, copiadas del módulo 18).
+- `RWAErrors.sol`, `Identity.sol`, `ClaimTopicsRegistry`, `TrustedIssuersRegistry`, `IdentityRegistry`.
+- `isVerified`: registrado + todos los topics con claim de trusted issuer autorizado para ese topic.
+- Tests: `IdentityRegistry.t.sol` (unit + fuzz 1000).
+- Stub `script/Deploy.s.sol`, `.env.example`, `README.md`.
+- **`forge test` → 17 PASS**.
 
 ---
 
@@ -278,6 +288,7 @@ error InvalidCountry();
 
 ## 8. Checklist de aceptación global (v1)
 
+- [x] Identity Registry + `isVerified` operativo (Fase IDENT)
 - [ ] Todo `transfer` / `transferFrom` llama `isVerified` → `IdentityNotVerified`
 - [ ] Freeze total/parcial y pause sin corromper `totalSupply`
 - [ ] Agent puede `forcedTransfer` a identidad verificada
@@ -291,7 +302,8 @@ error InvalidCountry();
 
 ## 9. Próximo paso
 
-**Esperando tu autorización.**  
-Respuesta sugerida para arrancar:
+**Fase IDENT cerrada.** Esperando autorización para continuar.
 
-`Autorizo Fase IDENT`
+Respuesta sugerida:
+
+`Autorizo Fase TOKEN`
