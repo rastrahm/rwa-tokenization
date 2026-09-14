@@ -80,4 +80,11 @@ interface IRWAToken {
 
     /// @notice Total supply en el snapshot `snapshotId`.
     function totalSupplyAt(uint256 snapshotId) external view returns (uint256);
+
+    /// @notice Motor de compliance modular (address(0) = sin reglas extra).
+    function compliance() external view returns (address);
+
+    /// @notice Vincula o actualiza el ModularCompliance (solo admin).
+    /// @param compliance_ Dirección del compliance (puede ser address(0) para desactivar).
+    function setCompliance(address compliance_) external;
 }

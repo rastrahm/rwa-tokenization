@@ -27,4 +27,9 @@ library RWAErrors {
     error IdentityAlreadyRegistered();
     error IdentityNotRegistered();
     error ClaimTopicNotAllowed();
+    error ModuleAlreadyAdded();
+    error ModuleNotFound();
+    error TokenAlreadyBound();
+    error OnlyBoundToken();
+    error OnlyCompliance();
 }

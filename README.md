@@ -2,8 +2,8 @@
 
 Tokenización de activos reales (RWA) con transfers permissioned estilo **ERC-3643 / T-REX**, Identity Registry, freeze/pause, forced recovery y dividendos por snapshot. Solidity `0.8.24` + Foundry.
 
-**Estado:** Fases **IDENT** ✅ + **TOKEN** ✅ + **LOCK** ✅ + **FORCE** ✅ + **YIELD** ✅ · resta **COMP** + **SOLV**.  
-**Suite:** `forge test` → **60 PASS**.
+**Estado:** Fases **IDENT → COMP** ✅ · resta **SOLV**.  
+**Suite:** `forge test` → **69 PASS**.
 
 ## Docs
 

@@ -1,8 +1,8 @@
 # Planificación — Módulo 19: RWA Tokenization & Compliance Protocols
 
-**Estado:** Fases **IDENT** ✅ + **TOKEN** ✅ + **LOCK** ✅ + **FORCE** ✅ + **YIELD** ✅ · resta **COMP** + **SOLV**.  
+**Estado:** Fases **IDENT → COMP** ✅ · resta **SOLV**.  
 **Regla de avance:** no se escribe código de una fase hasta tu autorización explícita (`Autorizo Fase <ID>`).  
-**Suite:** `forge test` → **60 PASS**.  
+**Suite:** `forge test` → **69 PASS**.  
 **Nota de diseño:** las fases **no** siguen el esquema genérico 0–7 de módulos anteriores; se organizan por **dominios de compliance RWA**.
 
 ---
@@ -87,10 +87,12 @@ Stack: **Foundry + Solidity `0.8.24`**. Frontend Next.js queda **fuera de alcanc
 │   ├── ClaimTopicsRegistry.sol
 │   ├── TrustedIssuersRegistry.sol
 │   ├── RWAToken.sol                   # ERC-20 permissioned (Fase TOKEN ✅)
-│   ├── ModularCompliance.sol          # (Fase COMP)
+│   ├── ModularCompliance.sol          # Agregador de módulos (Fase COMP ✅)
 │   ├── DividendDistributor.sol        # Snapshot → claim USDC (Fase YIELD ✅)
 │   ├── interfaces/
-│   ├── compliance/                    # (Fase COMP)
+│   ├── compliance/
+│   │   ├── CountryRestrictModule.sol
+│   │   └── MaxBalanceModule.sol
 │   ├── errors/
 │   │   └── RWAErrors.sol
 │   └── mocks/
@@ -112,6 +114,9 @@ Stack: **Foundry + Solidity `0.8.24`**. Frontend Next.js queda **fuera de alcanc
 | `TrustedIssuersRegistry` | Emisores de claims confiables |
 | `RWAToken` | ERC-20 permissioned: KYC + pause + freeze + forcedTransfer + snapshots |
 | `DividendDistributor` | Snapshot → claim stablecoin pro-rata |
+| `ModularCompliance` | Agrega módulos `canTransfer` + hooks |
+| `CountryRestrictModule` | Bloquea países restringidos |
+| `MaxBalanceModule` | Cap de balance por wallet |
 | `MockERC20` | USDC/USDT de lab |
 
 ---
@@ -143,6 +148,11 @@ error IssuerDoesNotExist();
 error IdentityAlreadyRegistered();
 error IdentityNotRegistered();
 error ClaimTopicNotAllowed();
+error ModuleAlreadyAdded();
+error ModuleNotFound();
+error TokenAlreadyBound();
+error OnlyBoundToken();
+error OnlyCompliance();
 ```
 
 ---
@@ -166,10 +176,10 @@ error ClaimTopicNotAllowed();
 | **LOCK** | Pause global + freeze total/parcial | ✅ Completada | ✅ Autorizada |
 | **FORCE** | Agent `forcedTransfer` / asset recovery | ✅ Completada | ✅ Autorizada |
 | **YIELD** | `DividendDistributor` snapshot USDC/USDT | ✅ Completada | ✅ Autorizada |
-| **COMP** | `ModularCompliance` + módulos país / max balance | ⏳ Pendiente | ❌ Sin autorizar |
+| **COMP** | `ModularCompliance` + módulos país / max balance | ✅ Completada | ✅ Autorizada |
 | **SOLV** | Suite: compliance fail, yield accuracy, recovery, fuzz locks + Deploy/gas | ⏳ Pendiente | ❌ Sin autorizar |
 
-**Cómo autorizar:** responde en el chat con `Autorizo Fase COMP` (siguiente recomendada).
+**Cómo autorizar:** responde en el chat con `Autorizo Fase SOLV` (cierre v1).
 
 ---
 
@@ -290,7 +300,7 @@ error ClaimTopicNotAllowed();
 
 ---
 
-### Fase COMP — ModularCompliance
+### Fase COMP — ModularCompliance ✅
 
 **Objetivo:** reglas componibles además del KYC base.
 
@@ -301,7 +311,15 @@ error ClaimTopicNotAllowed();
 
 **Criterio de salida:** tests por módulo + combinación KYC+compliance.
 
-**Depende de:** TOKEN (recomendado tras LOCK para no mezclar freeze con reglas de país en el mismo PR mental).
+**Depende de:** TOKEN.
+
+**Hecho (2026-09-14):**
+- `ModularCompliance` + `CountryRestrictModule` + `MaxBalanceModule`.
+- `RWAToken.setCompliance`; `_update` llama `canTransfer` (transfers + mint) y hooks post-movimiento.
+- `forcedTransfer` bypassa `canTransfer` pero ejecuta hook `transferred`.
+- Tests: país restringido, max balance, KYC sigue obligatorio, remove module.
+- Deploy cablea compliance + módulos.
+- **`forge test` → 69 PASS**.
 
 ---
 
@@ -328,7 +346,7 @@ error ClaimTopicNotAllowed();
 - [x] Freeze total/parcial y pause sin corromper `totalSupply`
 - [x] Agent puede `forcedTransfer` a identidad verificada
 - [x] Dividendos snapshot: proporciones correctas, sin over-claim
-- [ ] Compliance modular rechaza transfers no conformes
+- [x] Compliance modular rechaza transfers no conformes
 - [ ] Fuzz de locks + invariantes de solvencia en verde
 - [ ] CEI + custom errors + NatSpec + solc `0.8.24`
 - [ ] Frontend Next.js **no** incluido (post-v1)
@@ -337,8 +355,8 @@ error ClaimTopicNotAllowed();
 
 ## 9. Próximo paso
 
-**Fases IDENT → YIELD cerradas.** Esperando autorización para continuar.
+**Fases IDENT → COMP cerradas.** Esperando autorización para el cierre.
 
 Respuesta sugerida:
 
-`Autorizo Fase COMP`
+`Autorizo Fase SOLV`

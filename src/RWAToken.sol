@@ -4,17 +4,18 @@ pragma solidity 0.8.24;
 import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
+import {ICompliance} from "./interfaces/ICompliance.sol";
 import {IIdentityRegistry} from "./interfaces/IIdentityRegistry.sol";
 import {IRWAToken} from "./interfaces/IRWAToken.sol";
 import {RWAErrors} from "./errors/RWAErrors.sol";
 
 /// @title RWAToken
-/// @notice ERC-20 permissioned: KYC, pause, freeze, forcedTransfer y snapshots para dividendos.
-/// @dev Compliance modular se añade en fase COMP.
+/// @notice ERC-20 permissioned: KYC, pause, freeze, forcedTransfer, snapshots y compliance modular.
 contract RWAToken is ERC20, AccessControl, IRWAToken {
     bytes32 public constant AGENT_ROLE = keccak256("AGENT_ROLE");
 
     IIdentityRegistry private _identityRegistry;
+    ICompliance private _compliance;
 
     bool private _paused;
     bool private _forcedTransferInProgress;
@@ -41,6 +42,7 @@ contract RWAToken is ERC20, AccessControl, IRWAToken {
     event TokensUnfrozen(address indexed account, uint256 amount);
     event ForcedTransfer(address indexed from, address indexed to, uint256 amount, address indexed agent);
     event Snapshot(uint256 indexed snapshotId);
+    event ComplianceSet(address indexed compliance);
 
     /// @param name_ Nombre del token.
     /// @param symbol_ Símbolo del token.
@@ -68,6 +70,17 @@ contract RWAToken is ERC20, AccessControl, IRWAToken {
         if (identityRegistry_ == address(0)) revert RWAErrors.ZeroAddress();
         _identityRegistry = IIdentityRegistry(identityRegistry_);
         emit IdentityRegistrySet(identityRegistry_);
+    }
+
+    /// @inheritdoc IRWAToken
+    function compliance() external view returns (address) {
+        return address(_compliance);
+    }
+
+    /// @inheritdoc IRWAToken
+    function setCompliance(address compliance_) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        _compliance = ICompliance(compliance_);
+        emit ComplianceSet(compliance_);
     }
 
     /// @inheritdoc IRWAToken
@@ -217,7 +230,7 @@ contract RWAToken is ERC20, AccessControl, IRWAToken {
         return snapshotted ? value : totalSupply();
     }
 
-    /// @dev Gate KYC + pause + freeze en transfers normales. `forcedTransfer` usa el flag interno.
+    /// @dev Gate KYC + pause + freeze + compliance en transfers normales. `forcedTransfer` salta canTransfer.
     function _update(address from, address to, uint256 value) internal virtual override {
         if (from != address(0) && to != address(0) && !_forcedTransferInProgress) {
             if (_paused) revert RWAErrors.TokenPaused();
@@ -226,6 +239,14 @@ contract RWAToken is ERC20, AccessControl, IRWAToken {
                 revert RWAErrors.IdentityNotVerified();
             }
             if (value > getFreeBalance(from)) revert RWAErrors.InsufficientUnfrozenBalance();
+            if (address(_compliance) != address(0) && !_compliance.canTransfer(from, to, value)) {
+                revert RWAErrors.TransferNotCompliant();
+            }
+        }
+
+        // Mint: compliance canTransfer(0, to, value) si hay motor.
+        if (from == address(0) && to != address(0) && address(_compliance) != address(0)) {
+            if (!_compliance.canTransfer(address(0), to, value)) revert RWAErrors.TransferNotCompliant();
         }
 
         if (from != address(0)) _updateAccountSnapshot(from);
@@ -236,6 +257,16 @@ contract RWAToken is ERC20, AccessControl, IRWAToken {
 
         if (from != address(0) && to == address(0)) {
             _syncFrozenTokens(from);
+        }
+
+        if (address(_compliance) != address(0)) {
+            if (from == address(0)) {
+                _compliance.created(to, value);
+            } else if (to == address(0)) {
+                _compliance.destroyed(from, value);
+            } else {
+                _compliance.transferred(from, to, value);
+            }
         }
     }
 
