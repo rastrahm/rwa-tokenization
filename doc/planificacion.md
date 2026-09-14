@@ -1,8 +1,8 @@
 # Planificación — Módulo 19: RWA Tokenization & Compliance Protocols
 
-**Estado:** Fases **IDENT** ✅ + **TOKEN** ✅ · resto pendiente de autorización.  
+**Estado:** Fases **IDENT** ✅ + **TOKEN** ✅ + **LOCK** ✅ · resto pendiente de autorización.  
 **Regla de avance:** no se escribe código de una fase hasta tu autorización explícita (`Autorizo Fase <ID>`).  
-**Suite:** `forge test` → **30 PASS** (IDENT + TOKEN).  
+**Suite:** `forge test` → **40 PASS** (IDENT + TOKEN + LOCK).  
 **Nota de diseño:** las fases **no** siguen el esquema genérico 0–7 de módulos anteriores; se organizan por **dominios de compliance RWA**.
 
 ---
@@ -110,7 +110,7 @@ Stack: **Foundry + Solidity `0.8.24`**. Frontend Next.js queda **fuera de alcanc
 | `IdentityRegistry` | Alta/baja de identidades; `isVerified` |
 | `ClaimTopicsRegistry` | Topics KYC requeridos |
 | `TrustedIssuersRegistry` | Emisores de claims confiables |
-| `RWAToken` | ERC-20 permissioned: mint/transfer gated por `isVerified` |
+| `RWAToken` | ERC-20 permissioned: KYC + pause + freeze total/parcial |
 | `DividendDistributor` | Snapshot → claim stablecoin pro-rata *(pendiente)* |
 
 ---
@@ -123,6 +123,7 @@ error TransferNotCompliant();
 error WalletFrozen();
 error InsufficientUnfrozenBalance();
 error TokenPaused();
+error TokenNotPaused();
 error UnauthorizedAgent();
 error ZeroAddress();
 error ZeroAmount();
@@ -158,13 +159,13 @@ error ClaimTopicNotAllowed();
 |------|--------|--------|--------------|
 | **IDENT** | Scaffold Foundry + Identity Registry (`isVerified`) | ✅ Completada | ✅ Autorizada |
 | **TOKEN** | `RWAToken` permissioned (transfer gated ERC-3643) | ✅ Completada | ✅ Autorizada |
-| **LOCK** | Pause global + freeze total/parcial | ⏳ Pendiente | ❌ Sin autorizar |
+| **LOCK** | Pause global + freeze total/parcial | ✅ Completada | ✅ Autorizada |
 | **FORCE** | Agent `forcedTransfer` / asset recovery | ⏳ Pendiente | ❌ Sin autorizar |
 | **YIELD** | `DividendDistributor` snapshot USDC/USDT | ⏳ Pendiente | ❌ Sin autorizar |
 | **COMP** | `ModularCompliance` + módulos país / max balance | ⏳ Pendiente | ❌ Sin autorizar |
 | **SOLV** | Suite: compliance fail, yield accuracy, recovery, fuzz locks + Deploy/gas | ⏳ Pendiente | ❌ Sin autorizar |
 
-**Cómo autorizar:** responde en el chat con `Autorizo Fase LOCK` (siguiente recomendada).
+**Cómo autorizar:** responde en el chat con `Autorizo Fase FORCE` (siguiente recomendada).
 
 ---
 
@@ -218,7 +219,7 @@ error ClaimTopicNotAllowed();
 
 ---
 
-### Fase LOCK — Pause y freeze modular
+### Fase LOCK — Pause y freeze modular ✅
 
 **Objetivo:** restringir movimiento sin alterar `totalSupply`.
 
@@ -230,6 +231,14 @@ error ClaimTopicNotAllowed();
 **Criterio de salida:** tests de freeze/pause + invariante supply intacto.
 
 **Depende de:** TOKEN.
+
+**Hecho (2026-09-14):**
+- `pause` / `unpause`, `setAddressFrozen`, `freezePartialTokens` / `unfreezePartialTokens` (solo `AGENT_ROLE`).
+- `_update`: pause + freeze total + saldo libre en transfers wallet↔wallet.
+- `getFreeBalance`; sync de `frozenTokens` tras burn si balance < frozen.
+- Mint de agent permitido con pause (solo se bloquean transfers).
+- Tests: `FreezePause.t.sol` (unit + fuzz supply).
+- **`forge test` → 40 PASS**.
 
 ---
 
@@ -298,7 +307,7 @@ error ClaimTopicNotAllowed();
 
 - [x] Identity Registry + `isVerified` operativo (Fase IDENT)
 - [x] Todo `transfer` / `transferFrom` llama `isVerified` → `IdentityNotVerified`
-- [ ] Freeze total/parcial y pause sin corromper `totalSupply`
+- [x] Freeze total/parcial y pause sin corromper `totalSupply`
 - [ ] Agent puede `forcedTransfer` a identidad verificada
 - [ ] Dividendos snapshot: proporciones correctas, sin over-claim
 - [ ] Compliance modular rechaza transfers no conformes
@@ -310,8 +319,8 @@ error ClaimTopicNotAllowed();
 
 ## 9. Próximo paso
 
-**Fases IDENT + TOKEN cerradas.** Esperando autorización para continuar.
+**Fases IDENT + TOKEN + LOCK cerradas.** Esperando autorización para continuar.
 
 Respuesta sugerida:
 
-`Autorizo Fase LOCK`
+`Autorizo Fase FORCE`
