@@ -5,15 +5,19 @@ import {Script, console2} from "forge-std/Script.sol";
 
 import {ClaimTopicsRegistry} from "../src/ClaimTopicsRegistry.sol";
 import {IdentityRegistry} from "../src/IdentityRegistry.sol";
+import {RWAToken} from "../src/RWAToken.sol";
 import {TrustedIssuersRegistry} from "../src/TrustedIssuersRegistry.sol";
 
-/// @notice Stub de deploy (Fase IDENT). Se ampliará en fases posteriores / SOLV.
+/// @notice Deploy identity stack + RWAToken (Fases IDENT + TOKEN). Se amplía en SOLV.
 contract Deploy is Script {
     uint256 internal constant TOPIC_KYC = 1;
 
     function run() external {
         uint256 pk = vm.envOr("PRIVATE_KEY", uint256(0));
         address deployer = pk != 0 ? vm.addr(pk) : msg.sender;
+
+        string memory name_ = vm.envOr("TOKEN_NAME", string("RWA Real Estate"));
+        string memory symbol_ = vm.envOr("TOKEN_SYMBOL", string("rRE"));
 
         if (pk != 0) vm.startBroadcast(pk);
         else vm.startBroadcast();
@@ -23,10 +27,13 @@ contract Deploy is Script {
         IdentityRegistry registry = new IdentityRegistry(deployer, address(topics), address(issuers));
         topics.addClaimTopic(TOPIC_KYC);
 
+        RWAToken token = new RWAToken(name_, symbol_, deployer, address(registry));
+
         vm.stopBroadcast();
 
         console2.log("ClaimTopicsRegistry", address(topics));
         console2.log("TrustedIssuersRegistry", address(issuers));
         console2.log("IdentityRegistry", address(registry));
+        console2.log("RWAToken", address(token));
     }
 }
