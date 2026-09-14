@@ -4,11 +4,13 @@ pragma solidity 0.8.24;
 import {Script, console2} from "forge-std/Script.sol";
 
 import {ClaimTopicsRegistry} from "../src/ClaimTopicsRegistry.sol";
+import {DividendDistributor} from "../src/DividendDistributor.sol";
 import {IdentityRegistry} from "../src/IdentityRegistry.sol";
 import {RWAToken} from "../src/RWAToken.sol";
 import {TrustedIssuersRegistry} from "../src/TrustedIssuersRegistry.sol";
+import {MockERC20} from "../src/mocks/MockERC20.sol";
 
-/// @notice Deploy identity stack + RWAToken (Fases IDENT + TOKEN). Se amplía en SOLV.
+/// @notice Deploy identity + RWAToken + DividendDistributor (+ Mock USDC lab).
 contract Deploy is Script {
     uint256 internal constant TOPIC_KYC = 1;
 
@@ -28,6 +30,8 @@ contract Deploy is Script {
         topics.addClaimTopic(TOPIC_KYC);
 
         RWAToken token = new RWAToken(name_, symbol_, deployer, address(registry));
+        DividendDistributor dividends = new DividendDistributor(deployer, address(token));
+        MockERC20 usdc = new MockERC20("USD Coin", "USDC", 6);
 
         vm.stopBroadcast();
 
@@ -35,5 +39,7 @@ contract Deploy is Script {
         console2.log("TrustedIssuersRegistry", address(issuers));
         console2.log("IdentityRegistry", address(registry));
         console2.log("RWAToken", address(token));
+        console2.log("DividendDistributor", address(dividends));
+        console2.log("MockUSDC", address(usdc));
     }
 }

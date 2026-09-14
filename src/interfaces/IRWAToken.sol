@@ -67,4 +67,17 @@ interface IRWAToken {
     /// @param amount Cantidad a mover.
     /// @return success True si la transferencia se completó.
     function forcedTransfer(address from, address to, uint256 amount) external returns (bool success);
+
+    /// @notice Crea un snapshot de balances / totalSupply (solo agent).
+    /// @return snapshotId Id del snapshot creado.
+    function snapshot() external returns (uint256 snapshotId);
+
+    /// @notice Id del último snapshot (0 si aún no hay).
+    function currentSnapshotId() external view returns (uint256);
+
+    /// @notice Balance de `account` en el snapshot `snapshotId`.
+    function balanceOfAt(address account, uint256 snapshotId) external view returns (uint256);
+
+    /// @notice Total supply en el snapshot `snapshotId`.
+    function totalSupplyAt(uint256 snapshotId) external view returns (uint256);
 }

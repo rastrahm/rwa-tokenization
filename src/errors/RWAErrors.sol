@@ -16,7 +16,9 @@ library RWAErrors {
     error AlreadyClaimed();
     error NothingToClaim();
     error InvalidSnapshot();
+    error InvalidDistribution();
     error DistributionNotFunded();
+    error AlreadyFunded();
     error InvalidCountry();
     error TopicAlreadyExists();
     error TopicDoesNotExist();
