@@ -1,8 +1,8 @@
 # Planificación — Módulo 19: RWA Tokenization & Compliance Protocols
 
-**Estado:** Fase **IDENT** ✅ · resto pendiente de autorización.  
+**Estado:** Fases **IDENT** ✅ + **TOKEN** ✅ · resto pendiente de autorización.  
 **Regla de avance:** no se escribe código de una fase hasta tu autorización explícita (`Autorizo Fase <ID>`).  
-**Suite:** `forge test` → **17 PASS** (Fase IDENT).  
+**Suite:** `forge test` → **30 PASS** (IDENT + TOKEN).  
 **Nota de diseño:** las fases **no** siguen el esquema genérico 0–7 de módulos anteriores; se organizan por **dominios de compliance RWA**.
 
 ---
@@ -86,7 +86,7 @@ Stack: **Foundry + Solidity `0.8.24`**. Frontend Next.js queda **fuera de alcanc
 │   ├── IdentityRegistry.sol           # isVerified + register/delete
 │   ├── ClaimTopicsRegistry.sol
 │   ├── TrustedIssuersRegistry.sol
-│   ├── RWAToken.sol                   # (Fase TOKEN)
+│   ├── RWAToken.sol                   # ERC-20 permissioned (Fase TOKEN ✅)
 │   ├── ModularCompliance.sol          # (Fase COMP)
 │   ├── DividendDistributor.sol        # (Fase YIELD)
 │   ├── interfaces/
@@ -110,7 +110,7 @@ Stack: **Foundry + Solidity `0.8.24`**. Frontend Next.js queda **fuera de alcanc
 | `IdentityRegistry` | Alta/baja de identidades; `isVerified` |
 | `ClaimTopicsRegistry` | Topics KYC requeridos |
 | `TrustedIssuersRegistry` | Emisores de claims confiables |
-| `RWAToken` | ERC-20 permissioned + freeze + pause + forced *(pendiente)* |
+| `RWAToken` | ERC-20 permissioned: mint/transfer gated por `isVerified` |
 | `DividendDistributor` | Snapshot → claim stablecoin pro-rata *(pendiente)* |
 
 ---
@@ -157,14 +157,14 @@ error ClaimTopicNotAllowed();
 | Fase | Nombre | Estado | Autorización |
 |------|--------|--------|--------------|
 | **IDENT** | Scaffold Foundry + Identity Registry (`isVerified`) | ✅ Completada | ✅ Autorizada |
-| **TOKEN** | `RWAToken` permissioned (transfer gated ERC-3643) | ⏳ Pendiente | ❌ Sin autorizar |
+| **TOKEN** | `RWAToken` permissioned (transfer gated ERC-3643) | ✅ Completada | ✅ Autorizada |
 | **LOCK** | Pause global + freeze total/parcial | ⏳ Pendiente | ❌ Sin autorizar |
 | **FORCE** | Agent `forcedTransfer` / asset recovery | ⏳ Pendiente | ❌ Sin autorizar |
 | **YIELD** | `DividendDistributor` snapshot USDC/USDT | ⏳ Pendiente | ❌ Sin autorizar |
 | **COMP** | `ModularCompliance` + módulos país / max balance | ⏳ Pendiente | ❌ Sin autorizar |
 | **SOLV** | Suite: compliance fail, yield accuracy, recovery, fuzz locks + Deploy/gas | ⏳ Pendiente | ❌ Sin autorizar |
 
-**Cómo autorizar:** responde en el chat con `Autorizo Fase TOKEN` (siguiente recomendada).
+**Cómo autorizar:** responde en el chat con `Autorizo Fase LOCK` (siguiente recomendada).
 
 ---
 
@@ -195,7 +195,7 @@ error ClaimTopicNotAllowed();
 
 ---
 
-### Fase TOKEN — RWAToken permissioned
+### Fase TOKEN — RWAToken permissioned ✅
 
 **Objetivo:** ERC-20 cuyas transferencias exigen KYC en `from` y `to`.
 
@@ -207,6 +207,14 @@ error ClaimTopicNotAllowed();
 **Criterio de salida:** suite de transfer compliance-failure en verde.
 
 **Depende de:** IDENT.
+
+**Hecho (2026-09-14):**
+- `IRWAToken` + `RWAToken` (OZ `ERC20` + `AccessControl`, `AGENT_ROLE`).
+- `_update`: transfers entre wallets exigen `isVerified(from)` y `isVerified(to)`.
+- `mint` solo agent → destinatario verificado; `burn` solo agent.
+- Helper `test/helpers/RWATestBase.sol`; tests `RWAToken.transfer.t.sol` (unit + fuzz).
+- `Deploy.s.sol` despliega identity stack + token.
+- **`forge test` → 30 PASS**.
 
 ---
 
@@ -289,7 +297,7 @@ error ClaimTopicNotAllowed();
 ## 8. Checklist de aceptación global (v1)
 
 - [x] Identity Registry + `isVerified` operativo (Fase IDENT)
-- [ ] Todo `transfer` / `transferFrom` llama `isVerified` → `IdentityNotVerified`
+- [x] Todo `transfer` / `transferFrom` llama `isVerified` → `IdentityNotVerified`
 - [ ] Freeze total/parcial y pause sin corromper `totalSupply`
 - [ ] Agent puede `forcedTransfer` a identidad verificada
 - [ ] Dividendos snapshot: proporciones correctas, sin over-claim
@@ -302,8 +310,8 @@ error ClaimTopicNotAllowed();
 
 ## 9. Próximo paso
 
-**Fase IDENT cerrada.** Esperando autorización para continuar.
+**Fases IDENT + TOKEN cerradas.** Esperando autorización para continuar.
 
 Respuesta sugerida:
 
-`Autorizo Fase TOKEN`
+`Autorizo Fase LOCK`
