@@ -9,14 +9,15 @@ import {IRWAToken} from "./interfaces/IRWAToken.sol";
 import {RWAErrors} from "./errors/RWAErrors.sol";
 
 /// @title RWAToken
-/// @notice ERC-20 permissioned: KYC en transfers, pause global y freeze total/parcial.
-/// @dev `forcedTransfer` y compliance modular se añaden en fases FORCE / COMP.
+/// @notice ERC-20 permissioned: KYC, pause, freeze y `forcedTransfer` de recuperación.
+/// @dev Compliance modular se añade en fase COMP.
 contract RWAToken is ERC20, AccessControl, IRWAToken {
     bytes32 public constant AGENT_ROLE = keccak256("AGENT_ROLE");
 
     IIdentityRegistry private _identityRegistry;
 
     bool private _paused;
+    bool private _forcedTransferInProgress;
     mapping(address account => bool frozen) private _frozen;
     mapping(address account => uint256 amount) private _frozenTokens;
 
@@ -28,6 +29,7 @@ contract RWAToken is ERC20, AccessControl, IRWAToken {
     event AddressFrozen(address indexed account, bool indexed isFrozen, address indexed agent);
     event TokensFrozen(address indexed account, uint256 amount);
     event TokensUnfrozen(address indexed account, uint256 amount);
+    event ForcedTransfer(address indexed from, address indexed to, uint256 amount, address indexed agent);
 
     /// @param name_ Nombre del token.
     /// @param symbol_ Símbolo del token.
@@ -62,7 +64,7 @@ contract RWAToken is ERC20, AccessControl, IRWAToken {
         return hasRole(AGENT_ROLE, account);
     }
 
-    /// @notice Otorga rol de agent (mint/burn/freeze/pause y futuras acciones de compliance).
+    /// @notice Otorga rol de agent (mint/burn/freeze/pause/forcedTransfer).
     /// @param agent Dirección a autorizar.
     function addAgent(address agent) external onlyRole(DEFAULT_ADMIN_ROLE) {
         if (agent == address(0)) revert RWAErrors.ZeroAddress();
@@ -153,10 +155,37 @@ contract RWAToken is ERC20, AccessControl, IRWAToken {
         _burn(account, amount);
     }
 
-    /// @dev Gate KYC + pause + freeze en transfers entre wallets. Mint/burn no aplican freeze/pause
-    ///      (acciones de agent). Tras burn, se ajusta `frozenTokens` si supera el balance restante.
+    /// @inheritdoc IRWAToken
+    /// @dev Bypassa pause, freeze total/parcial e `isVerified` del `from`. El `to` debe estar verificado
+    ///      y no frozen. Ajusta `frozenTokens` del origen si se mueven tokens congelados.
+    function forcedTransfer(address from, address to, uint256 amount) external returns (bool success) {
+        if (!hasRole(AGENT_ROLE, msg.sender)) revert RWAErrors.UnauthorizedAgent();
+        if (from == address(0) || to == address(0)) revert RWAErrors.ZeroAddress();
+        if (amount == 0) revert RWAErrors.ZeroAmount();
+        if (!_identityRegistry.isVerified(to)) revert RWAErrors.IdentityNotVerified();
+        if (_frozen[to]) revert RWAErrors.WalletFrozen();
+
+        uint256 fromBalance = balanceOf(from);
+        if (fromBalance < amount) revert RWAErrors.InsufficientBalance();
+
+        uint256 free = getFreeBalance(from);
+        if (amount > free) {
+            uint256 tokensToUnfreeze = amount - free;
+            _frozenTokens[from] -= tokensToUnfreeze;
+            emit TokensUnfrozen(from, tokensToUnfreeze);
+        }
+
+        _forcedTransferInProgress = true;
+        _update(from, to, amount);
+        _forcedTransferInProgress = false;
+
+        emit ForcedTransfer(from, to, amount, msg.sender);
+        return true;
+    }
+
+    /// @dev Gate KYC + pause + freeze en transfers normales. `forcedTransfer` usa el flag interno.
     function _update(address from, address to, uint256 value) internal virtual override {
-        if (from != address(0) && to != address(0)) {
+        if (from != address(0) && to != address(0) && !_forcedTransferInProgress) {
             if (_paused) revert RWAErrors.TokenPaused();
             if (_frozen[from] || _frozen[to]) revert RWAErrors.WalletFrozen();
             if (!_identityRegistry.isVerified(from) || !_identityRegistry.isVerified(to)) {

@@ -1,8 +1,8 @@
 # Planificación — Módulo 19: RWA Tokenization & Compliance Protocols
 
-**Estado:** Fases **IDENT** ✅ + **TOKEN** ✅ + **LOCK** ✅ · resto pendiente de autorización.  
+**Estado:** Fases **IDENT** ✅ + **TOKEN** ✅ + **LOCK** ✅ + **FORCE** ✅ · resto pendiente de autorización.  
 **Regla de avance:** no se escribe código de una fase hasta tu autorización explícita (`Autorizo Fase <ID>`).  
-**Suite:** `forge test` → **40 PASS** (IDENT + TOKEN + LOCK).  
+**Suite:** `forge test` → **51 PASS**.  
 **Nota de diseño:** las fases **no** siguen el esquema genérico 0–7 de módulos anteriores; se organizan por **dominios de compliance RWA**.
 
 ---
@@ -122,6 +122,7 @@ error IdentityNotVerified();       // obligatorio (.cursorrules)
 error TransferNotCompliant();
 error WalletFrozen();
 error InsufficientUnfrozenBalance();
+error InsufficientBalance();
 error TokenPaused();
 error TokenNotPaused();
 error UnauthorizedAgent();
@@ -160,12 +161,12 @@ error ClaimTopicNotAllowed();
 | **IDENT** | Scaffold Foundry + Identity Registry (`isVerified`) | ✅ Completada | ✅ Autorizada |
 | **TOKEN** | `RWAToken` permissioned (transfer gated ERC-3643) | ✅ Completada | ✅ Autorizada |
 | **LOCK** | Pause global + freeze total/parcial | ✅ Completada | ✅ Autorizada |
-| **FORCE** | Agent `forcedTransfer` / asset recovery | ⏳ Pendiente | ❌ Sin autorizar |
+| **FORCE** | Agent `forcedTransfer` / asset recovery | ✅ Completada | ✅ Autorizada |
 | **YIELD** | `DividendDistributor` snapshot USDC/USDT | ⏳ Pendiente | ❌ Sin autorizar |
 | **COMP** | `ModularCompliance` + módulos país / max balance | ⏳ Pendiente | ❌ Sin autorizar |
 | **SOLV** | Suite: compliance fail, yield accuracy, recovery, fuzz locks + Deploy/gas | ⏳ Pendiente | ❌ Sin autorizar |
 
-**Cómo autorizar:** responde en el chat con `Autorizo Fase FORCE` (siguiente recomendada).
+**Cómo autorizar:** responde en el chat con `Autorizo Fase YIELD` (siguiente recomendada).
 
 ---
 
@@ -242,7 +243,7 @@ error ClaimTopicNotAllowed();
 
 ---
 
-### Fase FORCE — Forced transfer / recovery
+### Fase FORCE — Forced transfer / recovery ✅
 
 **Objetivo:** agente recupera tokens hacia una identidad verificada nueva.
 
@@ -254,6 +255,13 @@ error ClaimTopicNotAllowed();
 **Criterio de salida:** forced recovery tests en verde.
 
 **Depende de:** LOCK.
+
+**Hecho (2026-09-14):**
+- `forcedTransfer(from, to, amount)` solo agent → `UnauthorizedAgent` si no.
+- Bypassa pause, freeze e `isVerified` del `from`; exige `isVerified(to)` y `to` no frozen.
+- Ajusta `frozenTokens` del origen si mueve saldo congelado; emite `ForcedTransfer` + `TokensUnfrozen`.
+- Tests: `ForcedTransfer.t.sol` (recovery, pause, partial freeze, fuzz supply).
+- **`forge test` → 51 PASS**.
 
 ---
 
@@ -308,7 +316,7 @@ error ClaimTopicNotAllowed();
 - [x] Identity Registry + `isVerified` operativo (Fase IDENT)
 - [x] Todo `transfer` / `transferFrom` llama `isVerified` → `IdentityNotVerified`
 - [x] Freeze total/parcial y pause sin corromper `totalSupply`
-- [ ] Agent puede `forcedTransfer` a identidad verificada
+- [x] Agent puede `forcedTransfer` a identidad verificada
 - [ ] Dividendos snapshot: proporciones correctas, sin over-claim
 - [ ] Compliance modular rechaza transfers no conformes
 - [ ] Fuzz de locks + invariantes de solvencia en verde
@@ -319,8 +327,8 @@ error ClaimTopicNotAllowed();
 
 ## 9. Próximo paso
 
-**Fases IDENT + TOKEN + LOCK cerradas.** Esperando autorización para continuar.
+**Fases IDENT → FORCE cerradas.** Esperando autorización para continuar.
 
 Respuesta sugerida:
 
-`Autorizo Fase FORCE`
+`Autorizo Fase YIELD`

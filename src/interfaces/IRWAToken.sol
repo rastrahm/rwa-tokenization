@@ -60,4 +60,11 @@ interface IRWAToken {
     /// @param account Wallet objetivo.
     /// @param amount Tokens a descongelar.
     function unfreezePartialTokens(address account, uint256 amount) external;
+
+    /// @notice Transferencia forzosa de recuperación (solo agent). Bypassa freeze/pause del `from`.
+    /// @param from Wallet origen (puede estar frozen o sin KYC vigente).
+    /// @param to Destino verificado.
+    /// @param amount Cantidad a mover.
+    /// @return success True si la transferencia se completó.
+    function forcedTransfer(address from, address to, uint256 amount) external returns (bool success);
 }
