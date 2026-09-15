@@ -1,8 +1,9 @@
 # Planificación — Módulo 19: RWA Tokenization & Compliance Protocols
 
-**Estado:** Fases **IDENT → COMP** ✅ · resta **SOLV**.  
-**Regla de avance:** no se escribe código de una fase hasta tu autorización explícita (`Autorizo Fase <ID>`).  
-**Suite:** `forge test` → **69 PASS**.  
+**Estado:** Fases **IDENT → SOLV** ✅ (módulo v1 cerrado).  
+**Regla de avance:** la regla de autorización por fase aplicó durante la construcción; v1 ya no tiene fases pendientes.  
+**Suite:** `forge test` → **80 PASS**.  
+**Docs sync:** 2026-09-15 — diagramas y árbol de archivos alineados al código.  
 **Nota de diseño:** las fases **no** siguen el esquema genérico 0–7 de módulos anteriores; se organizan por **dominios de compliance RWA**.
 
 ---
@@ -43,7 +44,7 @@ Stack: **Foundry + Solidity `0.8.24`**. Frontend Next.js queda **fuera de alcanc
 ### Suite (`evm-smart-contracts-suite` + `solidity.cursorrules`)
 
 - Solidity **exacto** `0.8.24` (sin floating pragma).
-- OpenZeppelin Contracts v5.x (`AccessControl` / `Ownable2Step`, `ERC20`, `ReentrancyGuard`, snapshots o equivalente).
+- OpenZeppelin Contracts v5.x (`AccessControl` / `Ownable2Step`, `ERC20`, `ReentrancyGuardTransient`, `SafeERC20`). Snapshots lazy propios en `RWAToken` (OZ v5 no trae ERC20Snapshot).
 - Foundry: unit + fuzz (`runs >= 1000`) + invariant + gas.
 - **Custom errors** (no `require` strings).
 - CEI estricto; tokens externos vía `safeTransfer` / checks de retorno.
@@ -66,7 +67,7 @@ Stack: **Foundry + Solidity `0.8.24`**. Frontend Next.js queda **fuera de alcanc
 
 ---
 
-## 4. Arquitectura objetivo (v1)
+## 4. Arquitectura (v1 implementado)
 
 ```
 19-rwa-tokenization/
@@ -74,32 +75,53 @@ Stack: **Foundry + Solidity `0.8.24`**. Frontend Next.js queda **fuera de alcanc
 ├── .cursorrules
 ├── .gitignore
 ├── .env.example
+├── .gas-snapshot
 ├── foundry.toml
 ├── remappings.txt
 ├── doc/
+│   ├── README.md
 │   ├── planificacion.md
 │   ├── diagrama-de-clases.md
 │   ├── diagrama-de-flujo.md
-│   └── flujograma.md
+│   ├── flujograma.md
+│   ├── SWC-AUDIT.md
+│   └── GAS.md
 ├── src/
-│   ├── Identity.sol                   # ONCHAINID lab (claims por topic)
-│   ├── IdentityRegistry.sol           # isVerified + register/delete
+│   ├── Identity.sol
+│   ├── IdentityRegistry.sol
 │   ├── ClaimTopicsRegistry.sol
 │   ├── TrustedIssuersRegistry.sol
-│   ├── RWAToken.sol                   # ERC-20 permissioned (Fase TOKEN ✅)
-│   ├── ModularCompliance.sol          # Agregador de módulos (Fase COMP ✅)
-│   ├── DividendDistributor.sol        # Snapshot → claim USDC (Fase YIELD ✅)
+│   ├── RWAToken.sol
+│   ├── ModularCompliance.sol
+│   ├── DividendDistributor.sol
 │   ├── interfaces/
+│   │   ├── IIdentity.sol
+│   │   ├── IIdentityRegistry.sol
+│   │   ├── IClaimTopicsRegistry.sol
+│   │   ├── ITrustedIssuersRegistry.sol
+│   │   ├── IRWAToken.sol
+│   │   ├── ICompliance.sol
+│   │   └── IDividendDistributor.sol
 │   ├── compliance/
 │   │   ├── CountryRestrictModule.sol
 │   │   └── MaxBalanceModule.sol
 │   ├── errors/
 │   │   └── RWAErrors.sol
 │   └── mocks/
+│       └── MockERC20.sol
 ├── test/
 │   ├── IdentityRegistry.t.sol
-│   ├── fuzz/
-│   └── invariant/
+│   ├── RWAToken.transfer.t.sol
+│   ├── FreezePause.t.sol
+│   ├── ForcedTransfer.t.sol
+│   ├── DividendDistributor.t.sol
+│   ├── ModularCompliance.t.sol
+│   ├── helpers/RWATestBase.sol
+│   ├── fuzz/TransferLocks.t.sol
+│   ├── invariant/
+│   │   ├── RWAHandler.sol
+│   │   └── RWASolvency.invariant.t.sol
+│   └── gas/RWAToken.gas.t.sol
 └── script/
     └── Deploy.s.sol
 ```
@@ -177,9 +199,9 @@ error OnlyCompliance();
 | **FORCE** | Agent `forcedTransfer` / asset recovery | ✅ Completada | ✅ Autorizada |
 | **YIELD** | `DividendDistributor` snapshot USDC/USDT | ✅ Completada | ✅ Autorizada |
 | **COMP** | `ModularCompliance` + módulos país / max balance | ✅ Completada | ✅ Autorizada |
-| **SOLV** | Suite: compliance fail, yield accuracy, recovery, fuzz locks + Deploy/gas | ⏳ Pendiente | ❌ Sin autorizar |
+| **SOLV** | Suite: fuzz locks + invariantes + Deploy/gas + SWC-AUDIT | ✅ Completada | ✅ Autorizada |
 
-**Cómo autorizar:** responde en el chat con `Autorizo Fase SOLV` (cierre v1).
+**Cómo autorizar:** módulo v1 cerrado; no hay fases pendientes.
 
 ---
 
@@ -323,7 +345,7 @@ error OnlyCompliance();
 
 ---
 
-### Fase SOLV — Hardening, fuzz, deploy y cierre v1
+### Fase SOLV — Hardening, fuzz, deploy y cierre v1 ✅
 
 **Objetivo:** demostrar solvencia bajo freezes parciales y reglas cambiantes; cerrar lab.
 
@@ -337,6 +359,14 @@ error OnlyCompliance();
 
 **Depende de:** IDENT + TOKEN + LOCK + FORCE + YIELD + COMP.
 
+**Hecho (2026-09-14):**
+- `test/fuzz/TransferLocks.t.sol` — freeze parcial, max balance, country toggle, forced.
+- `test/invariant/RWASolvency.invariant.t.sol` + `RWAHandler` — supply conservado, frozen ≤ balance.
+- `test/gas/RWAToken.gas.t.sol` + `.gas-snapshot`.
+- `doc/SWC-AUDIT.md` (matriz SWC-100–136, estilo módulo 18), `doc/GAS.md`, `doc/README.md`.
+- Deploy ya cableaba stack COMP + yield.
+- **`forge test` → 80 PASS**.
+
 ---
 
 ## 8. Checklist de aceptación global (v1)
@@ -347,16 +377,15 @@ error OnlyCompliance();
 - [x] Agent puede `forcedTransfer` a identidad verificada
 - [x] Dividendos snapshot: proporciones correctas, sin over-claim
 - [x] Compliance modular rechaza transfers no conformes
-- [ ] Fuzz de locks + invariantes de solvencia en verde
-- [ ] CEI + custom errors + NatSpec + solc `0.8.24`
-- [ ] Frontend Next.js **no** incluido (post-v1)
+- [x] Fuzz de locks + invariantes de solvencia en verde
+- [x] CEI + custom errors + NatSpec + solc `0.8.24`
+- [x] Frontend Next.js **no** incluido (post-v1)
+- [x] `doc/SWC-AUDIT.md` (estilo módulo 18)
+- [x] Gas snapshot + `Deploy.s.sol`
 
 ---
 
 ## 9. Próximo paso
 
-**Fases IDENT → COMP cerradas.** Esperando autorización para el cierre.
-
-Respuesta sugerida:
-
-`Autorizo Fase SOLV`
+**Módulo v1 cerrado (Fases IDENT → SOLV ✅).**  
+Post-v1 opcional: frontend Next.js, ONCHAINID con firmas de claims, quorum multi-sig de agents, más módulos de compliance.

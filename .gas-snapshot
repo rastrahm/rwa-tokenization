@@ -1,0 +1,4 @@
+RWATokenGasTest:testGas_forcedTransfer() (gas: 116855)
+RWATokenGasTest:testGas_freezePartial() (gas: 41244)
+RWATokenGasTest:testGas_snapshotAndClaim() (gas: 287534)
+RWATokenGasTest:testGas_transfer() (gas: 98077)
