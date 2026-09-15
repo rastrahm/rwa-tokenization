@@ -8,7 +8,7 @@ forge test --match-contract RWATokenGasTest --gas-report
 forge snapshot --match-contract RWATokenGasTest
 ```
 
-**Fecha baseline:** 2026-09-14 (Fase SOLV)  
+**Fecha baseline:** 2026-09-15 (Fase SOLV / docs sync)  
 **Snapshot:** `.gas-snapshot` (`test/gas/RWAToken.gas.t.sol`)  
 **Optimizer:** `optimizer_runs = 10_000`, `via_ir = true`, solc `0.8.24`, EVM Cancun  
 **Suite:** `forge test` → **80 PASS**

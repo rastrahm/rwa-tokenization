@@ -1,36 +1,39 @@
 # Flujograma — Ciclo completo RWA Tokenization & Compliance
 
-Flujo extremo a extremo entre inversores KYC, registro de identidades, token permissioned, agente de compliance y distribución de yield (módulo 19, **v1 implementado**).  
-**Sync:** 2026-09-14 · Fases **IDENT → SOLV** ✅ · 80 PASS.
+Flujo extremo a extremo (módulo 19, **v1 implementado**).  
+**Sync:** 2026-09-15 · Fases **IDENT → SOLV** ✅ · 80 PASS.
 
 ## Actores
 
 | Actor | Rol |
 |-------|-----|
-| Emisor / Issuer | Despliega token RWA; configura compliance e identity |
-| Investor KYC | Wallet verificada; puede recibir, transferir y claim dividendos |
-| Investor no-KYC | Sin identidad; toda transferencia revertirá |
-| Claim Issuer | Emite claims ONCHAINID (topics KYC/AML) |
-| Compliance Agent | Freeze, pause, `forcedTransfer`, gestiona módulos |
-| Dividend Manager | Crea y fondea distribuciones USDC/USDT |
-| ModularCompliance | Evalúa reglas (país, max balance, etc.) |
-| IdentityRegistry | Fuente de verdad de `isVerified` |
-| CI / Foundry | Unit compliance, yield accuracy, recovery, fuzz locks |
+| Emisor / Admin | Deploy; `DEFAULT_ADMIN_ROLE`; configura IR, compliance, agents |
+| Agent | mint/burn, pause, freeze, snapshot, `forcedTransfer` |
+| Claim Issuer | Emisor confiable de claims KYC (lab) |
+| Investor KYC | Wallet verificada; hold, transfer, claim dividendos |
+| Investor no-KYC | Sin identidad; transfer/mint revierten |
+| ModularCompliance | AND de módulos país / max balance |
+| IdentityRegistry | Fuente de `isVerified` + `investorCountry` |
+| Dividend manager | Owner del `DividendDistributor` |
+| CI / Foundry | Unit, fuzz locks, invariantes, gas, SWC |
 
 ---
 
-## Flujograma — Deploy y wiring
+## Flujograma — Deploy y wiring (v1)
 
 ```mermaid
 flowchart TD
-    Start([Inicio]) --> CTR[Deploy ClaimTopicsRegistry + TrustedIssuersRegistry]
+    Start([Inicio]) --> CTR[Deploy ClaimTopics + TrustedIssuers]
     CTR --> IR[Deploy IdentityRegistry]
-    IR --> Comp[Deploy ModularCompliance + modules]
-    Comp --> Tok[Deploy RWAToken bound a IR + Compliance]
-    Tok --> Div[Deploy DividendDistributor bound a RWAToken]
-    Div --> Agents[Grant roles: agent, dividend manager]
-    Agents --> Ready([Protocolo listo — sin holders aún])
+    IR --> Tok[Deploy RWAToken bound a IR]
+    Tok --> Comp[Deploy ModularCompliance + Country + MaxBalance]
+    Comp --> Wire[bindToken + addModule + token.setCompliance]
+    Wire --> Div[Deploy DividendDistributor + MockUSDC]
+    Div --> Agents[Admin = agent; topics KYC=1]
+    Agents --> Ready([Protocolo listo])
 ```
+
+> Script: `script/Deploy.s.sol`. Env: `.env.example` (`TOKEN_NAME`, `TOKEN_SYMBOL`, `MAX_BALANCE`).
 
 ---
 
@@ -38,20 +41,21 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    Start([Nuevo inversor]) --> KYC[Off-chain KYC / claims]
+    Start([Nuevo inversor]) --> KYC[Identity + claim KYC de trusted issuer]
     KYC --> Reg[IdentityRegistry.registerIdentity]
     Reg --> Ver{isVerified?}
     Ver -->|No| Block([No puede recibir tokens])
-    Ver -->|Sí| Mint[Issuer: mint RWA → investor]
+    Ver -->|Sí| Mint[Agent: mint RWA]
     Mint --> Hold[Hold RWAToken]
-    Hold --> Tx{¿quiere transferir?}
-    Tx -->|Sí| Gate[transfer: verified + compliance + unfrozen]
-    Gate -->|OK| Peer[Peer KYC recibe tokens]
-    Gate -->|fail| Rev[IdentityNotVerified / TransferNotCompliant / Frozen]
-    Hold --> Dist[DividendManager: createDistribution + deposit USDC]
-    Dist --> Claim[Holder: claim pro-rata snapshot]
-    Hold --> Lost{¿wallet perdida / orden judicial?}
-    Lost -->|Sí| Force[Agent: forcedTransfer → nueva identidad verificada]
+    Hold --> Tx{¿transferir?}
+    Tx -->|Sí| Gate[pause + freeze + KYC + free + compliance]
+    Gate -->|OK| Peer[Peer KYC recibe]
+    Gate -->|fail| Rev[IdentityNotVerified / TransferNotCompliant / Frozen / Paused]
+    Hold --> Snap[Agent: snapshot]
+    Snap --> Dist[DividendManager: create + deposit USDC]
+    Dist --> Claim[Holder: claim pro-rata]
+    Hold --> Lost{¿wallet perdida / orden?}
+    Lost -->|Sí| Force[Agent: forcedTransfer → nueva ID verificada]
     Force --> Recovered([Assets recuperados])
     Claim --> Done([Yield cobrado])
     Peer --> Hold
@@ -64,18 +68,18 @@ flowchart TD
 ```mermaid
 flowchart TD
     A[Intent transfer] --> L1[1. Pause global]
-    L1 --> L2[2. Freeze total / parcial]
+    L1 --> L2[2. Freeze total]
     L2 --> L3[3. isVerified from]
     L3 --> L4[4. isVerified to]
-    L4 --> L5[5. Compliance.canTransfer]
-    L5 --> L6[6. Balance unfrozen suficiente]
+    L4 --> L5[5. Free balance / freeze parcial]
+    L5 --> L6[6. Compliance.canTransfer — si bound]
     L6 --> Ok([_update + transferred hook])
     L1 -.->|fail| X1[TokenPaused]
     L2 -.->|fail| X2[WalletFrozen]
     L3 -.->|fail| X3[IdentityNotVerified]
     L4 -.->|fail| X3
-    L5 -.->|fail| X4[TransferNotCompliant]
-    L6 -.->|fail| X5[InsufficientUnfrozenBalance]
+    L5 -.->|fail| X4[InsufficientUnfrozenBalance]
+    L6 -.->|fail| X5[TransferNotCompliant]
 ```
 
 ---
@@ -87,15 +91,16 @@ flowchart TD
     A[Evento de riesgo / legal] --> B{¿tipo?}
     B -->|Sanción / AML| F1[setAddressFrozen true]
     B -->|Lock parcial| F2[freezePartialTokens]
-    B -->|Emergencia mercado| F3[pause global]
+    B -->|Emergencia| F3[pause global]
     B -->|Wallet comprometida| F4[forcedTransfer a nueva ID]
-    F1 --> Audit[Emit eventos + off-chain audit trail]
+    B -->|País restringido| F5[CountryRestrictModule.setCountryRestricted]
+    B -->|Cap holder| F6[MaxBalanceModule.setMaxBalance]
+    F1 --> Audit[Eventos on-chain]
     F2 --> Audit
     F3 --> Audit
     F4 --> Audit
-    Audit --> C{¿resolver?}
-    C -->|unfreeze / unpause| R[Restaurar operatoriedad]
-    C -->|mantener| Hold[Estado restringido]
+    F5 --> Audit
+    F6 --> Audit
 ```
 
 ---
@@ -104,16 +109,16 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    Start([Periodo de dividendos]) --> Snap[Tomar snapshotId del RWAToken]
+    Start([Periodo de dividendos]) --> Snap[RWAToken.snapshot]
     Snap --> Create[createDistribution totalAmount]
-    Create --> Fund[depositPayment USDC/USDT]
+    Create --> Fund[depositPayment — transferFrom totalAmount]
     Fund --> Loop[Holders claim]
     Loop --> Calc[claimable = balAt * total / supplyAt]
-    Calc --> Pay[Transfer stablecoin]
+    Calc --> Pay[safeTransfer stablecoin]
     Pay --> Acc[claimedAmount += share]
     Acc --> Inv{Σ claimed <= totalAmount?}
-    Inv -->|Sí| Ok([Solvente])
-    Inv -->|No| Bug([Bug — no debe ocurrir])
+    Inv -->|Sí| Ok([Solvente — dust OK])
+    Inv -->|No| Bug([No debe ocurrir])
 ```
 
 ---
@@ -122,14 +127,16 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    A[forge build] --> B[Unit: IdentityRegistry isVerified]
-    B --> C[Unit: transfer no-KYC → IdentityNotVerified]
-    C --> D[Unit: freeze / pause / unfrozen balance]
-    D --> E[Unit: forcedTransfer recovery]
-    E --> F[Unit: multi-investor yield proportions]
-    F --> G[Fuzz: partial freezes + compliance updates]
-    G --> H[Invariant: supply + frozen accounting solvency]
-    H --> I[forge test → 80 PASS]
+    A[forge build] --> B[Unit: IdentityRegistry]
+    B --> C[Unit: RWAToken transfer KYC]
+    C --> D[Unit: FreezePause]
+    D --> E[Unit: ForcedTransfer]
+    E --> F[Unit: DividendDistributor]
+    F --> G[Unit: ModularCompliance]
+    G --> H[Fuzz: TransferLocks]
+    H --> I[Invariant: RWASolvency]
+    I --> J[Gas: RWATokenGasTest + snapshot]
+    J --> K[forge test → 80 PASS]
 ```
 
 ---
@@ -138,8 +145,8 @@ flowchart TD
 
 | Documento | Contenido |
 |-----------|-----------|
-| [diagrama-de-clases.md](./diagrama-de-clases.md) | Contratos, interfaces, módulos compliance |
+| [diagrama-de-clases.md](./diagrama-de-clases.md) | Contratos, interfaces, módulos (API real) |
 | [diagrama-de-flujo.md](./diagrama-de-flujo.md) | Decisiones internas por función |
-| [planificacion.md](./planificacion.md) | Fases IDENT→SOLV cerradas, arquitectura v1 |
-| [SWC-AUDIT.md](./SWC-AUDIT.md) | Matriz SWC |
+| [planificacion.md](./planificacion.md) | Fases IDENT→SOLV cerradas |
+| [SWC-AUDIT.md](./SWC-AUDIT.md) | Matriz SWC-100–136 |
 | [GAS.md](./GAS.md) | Baseline gas |

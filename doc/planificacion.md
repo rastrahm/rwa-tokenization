@@ -3,6 +3,7 @@
 **Estado:** Fases **IDENT → SOLV** ✅ (módulo v1 cerrado).  
 **Regla de avance:** la regla de autorización por fase aplicó durante la construcción; v1 ya no tiene fases pendientes.  
 **Suite:** `forge test` → **80 PASS**.  
+**Docs sync:** 2026-09-15 — diagramas y árbol de archivos alineados al código.  
 **Nota de diseño:** las fases **no** siguen el esquema genérico 0–7 de módulos anteriores; se organizan por **dominios de compliance RWA**.
 
 ---
@@ -43,7 +44,7 @@ Stack: **Foundry + Solidity `0.8.24`**. Frontend Next.js queda **fuera de alcanc
 ### Suite (`evm-smart-contracts-suite` + `solidity.cursorrules`)
 
 - Solidity **exacto** `0.8.24` (sin floating pragma).
-- OpenZeppelin Contracts v5.x (`AccessControl` / `Ownable2Step`, `ERC20`, `ReentrancyGuard`, snapshots o equivalente).
+- OpenZeppelin Contracts v5.x (`AccessControl` / `Ownable2Step`, `ERC20`, `ReentrancyGuardTransient`, `SafeERC20`). Snapshots lazy propios en `RWAToken` (OZ v5 no trae ERC20Snapshot).
 - Foundry: unit + fuzz (`runs >= 1000`) + invariant + gas.
 - **Custom errors** (no `require` strings).
 - CEI estricto; tokens externos vía `safeTransfer` / checks de retorno.
@@ -66,7 +67,7 @@ Stack: **Foundry + Solidity `0.8.24`**. Frontend Next.js queda **fuera de alcanc
 
 ---
 
-## 4. Arquitectura objetivo (v1)
+## 4. Arquitectura (v1 implementado)
 
 ```
 19-rwa-tokenization/
@@ -74,32 +75,53 @@ Stack: **Foundry + Solidity `0.8.24`**. Frontend Next.js queda **fuera de alcanc
 ├── .cursorrules
 ├── .gitignore
 ├── .env.example
+├── .gas-snapshot
 ├── foundry.toml
 ├── remappings.txt
 ├── doc/
+│   ├── README.md
 │   ├── planificacion.md
 │   ├── diagrama-de-clases.md
 │   ├── diagrama-de-flujo.md
-│   └── flujograma.md
+│   ├── flujograma.md
+│   ├── SWC-AUDIT.md
+│   └── GAS.md
 ├── src/
-│   ├── Identity.sol                   # ONCHAINID lab (claims por topic)
-│   ├── IdentityRegistry.sol           # isVerified + register/delete
+│   ├── Identity.sol
+│   ├── IdentityRegistry.sol
 │   ├── ClaimTopicsRegistry.sol
 │   ├── TrustedIssuersRegistry.sol
-│   ├── RWAToken.sol                   # ERC-20 permissioned (Fase TOKEN ✅)
-│   ├── ModularCompliance.sol          # Agregador de módulos (Fase COMP ✅)
-│   ├── DividendDistributor.sol        # Snapshot → claim USDC (Fase YIELD ✅)
+│   ├── RWAToken.sol
+│   ├── ModularCompliance.sol
+│   ├── DividendDistributor.sol
 │   ├── interfaces/
+│   │   ├── IIdentity.sol
+│   │   ├── IIdentityRegistry.sol
+│   │   ├── IClaimTopicsRegistry.sol
+│   │   ├── ITrustedIssuersRegistry.sol
+│   │   ├── IRWAToken.sol
+│   │   ├── ICompliance.sol
+│   │   └── IDividendDistributor.sol
 │   ├── compliance/
 │   │   ├── CountryRestrictModule.sol
 │   │   └── MaxBalanceModule.sol
 │   ├── errors/
 │   │   └── RWAErrors.sol
 │   └── mocks/
+│       └── MockERC20.sol
 ├── test/
 │   ├── IdentityRegistry.t.sol
-│   ├── fuzz/
-│   └── invariant/
+│   ├── RWAToken.transfer.t.sol
+│   ├── FreezePause.t.sol
+│   ├── ForcedTransfer.t.sol
+│   ├── DividendDistributor.t.sol
+│   ├── ModularCompliance.t.sol
+│   ├── helpers/RWATestBase.sol
+│   ├── fuzz/TransferLocks.t.sol
+│   ├── invariant/
+│   │   ├── RWAHandler.sol
+│   │   └── RWASolvency.invariant.t.sol
+│   └── gas/RWAToken.gas.t.sol
 └── script/
     └── Deploy.s.sol
 ```

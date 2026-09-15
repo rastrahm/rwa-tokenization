@@ -20,7 +20,7 @@ Verificación del protocolo RWA permissioned (módulo 19) contra el [SWC Registr
 **Dependencias de confianza:** forge-std, OpenZeppelin Contracts v5.2 (`AccessControl`, `Ownable2Step`, `ERC20`, `ReentrancyGuardTransient`, `SafeERC20`)
 
 **Mocks (fuera de prod):** `MockERC20`  
-**Fecha:** 2026-09-14 (Fase SOLV / cierre v1)  
+**Fecha:** 2026-09-15 (Fase SOLV / docs sync · cierre v1)  
 **Referencia tests:** `test/IdentityRegistry.t.sol`, `test/RWAToken.transfer.t.sol`, `test/FreezePause.t.sol`, `test/ForcedTransfer.t.sol`, `test/DividendDistributor.t.sol`, `test/ModularCompliance.t.sol`, `test/fuzz/TransferLocks.t.sol`, `test/invariant/RWASolvency.invariant.t.sol`, `test/gas/`  
 **Índice:** [`README.md`](./README.md) · README módulo: [`../README.md`](../README.md)
 
