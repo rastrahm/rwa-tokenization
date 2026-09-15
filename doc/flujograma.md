@@ -1,6 +1,7 @@
 # Flujograma — Ciclo completo RWA Tokenization & Compliance
 
-Flujo extremo a extremo entre inversores KYC, registro de identidades, token permissioned, agente de compliance y distribución de yield (módulo 19, **diseño**).
+Flujo extremo a extremo entre inversores KYC, registro de identidades, token permissioned, agente de compliance y distribución de yield (módulo 19, **v1 implementado**).  
+**Sync:** 2026-09-14 · Fases **IDENT → SOLV** ✅ · 80 PASS.
 
 ## Actores
 
@@ -128,7 +129,7 @@ flowchart TD
     E --> F[Unit: multi-investor yield proportions]
     F --> G[Fuzz: partial freezes + compliance updates]
     G --> H[Invariant: supply + frozen accounting solvency]
-    H --> I[Gas snapshot + Deploy.s.sol]
+    H --> I[forge test → 80 PASS]
 ```
 
 ---
@@ -139,4 +140,6 @@ flowchart TD
 |-----------|-----------|
 | [diagrama-de-clases.md](./diagrama-de-clases.md) | Contratos, interfaces, módulos compliance |
 | [diagrama-de-flujo.md](./diagrama-de-flujo.md) | Decisiones internas por función |
-| [planificacion.md](./planificacion.md) | Fases por dominio RWA (autorización por fase) |
+| [planificacion.md](./planificacion.md) | Fases IDENT→SOLV cerradas, arquitectura v1 |
+| [SWC-AUDIT.md](./SWC-AUDIT.md) | Matriz SWC |
+| [GAS.md](./GAS.md) | Baseline gas |

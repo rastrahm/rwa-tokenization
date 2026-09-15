@@ -1,7 +1,7 @@
 # Diagrama de clases — RWA Tokenization & Compliance Protocols
 
-Vista estructural propuesta para el módulo 19 (ERC-3643 / T-REX + Identity Registry + yield).  
-**Estado:** diseño previo a implementación · sync con `.cursorrules` local + suite.
+Vista estructural del módulo 19 (ERC-3643 / T-REX + Identity Registry + yield + compliance).  
+**Estado:** v1 implementado · Fases **IDENT → SOLV** ✅ · `forge test` → **80 PASS**.
 
 > **Estándar de referencia:** token permissioned estilo ERC-3643 (T-REX): transferencias condicionadas a identidad verificada, compliance modular y recuperación forzosa por agente autorizado.
 

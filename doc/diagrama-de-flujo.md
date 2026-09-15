@@ -1,7 +1,7 @@
 # Diagrama de flujo — Identity, transfers, freeze y dividendos
 
-Flujos de decisión internos del protocolo RWA (módulo 19, **diseño pre-implementación**).  
-Alineado a `.cursorrules`: `isVerified` en cada transfer, freeze/pause, forced recovery y yield por snapshot.
+Flujos de decisión internos del protocolo RWA (módulo 19, **v1 implementado**).  
+**Sync:** 2026-09-14 · Fases **IDENT → SOLV** ✅ · 80 PASS.
 
 ## 1. transfer / transferFrom (permissioned)
 
