@@ -1,11 +1,13 @@
-# Diagrama de clases — RWA Tokenization & Compliance Protocols
+# Class diagram — RWA Tokenization & Compliance Protocols
 
-Vista estructural alineada a la implementación v1 (módulo 19).  
-**Sync:** 2026-09-15 · Fases **IDENT → SOLV** ✅ · `forge test` → **80 PASS**.
+> 🇪🇸 [Versión en español](./diagrama-de-clases-ES.md) · [Index](./README.md)
 
-> **Estándar de referencia:** token permissioned estilo ERC-3643 (T-REX): KYC vía Identity Registry, compliance modular, freeze/pause, `forcedTransfer` y dividendos por snapshot.
+Structural view aligned with the v1 implementation (module 19).  
+**Sync:** 2026-09-15 · Phases **IDENT → SOLV** ✅ · `forge test` → **80 PASS**.
 
-## Diagrama (Mermaid)
+> **Reference standard:** ERC-3643 (T-REX) style permissioned token: KYC via Identity Registry, modular compliance, freeze/pause, `forcedTransfer` and snapshot-based dividends.
+
+## Diagram (Mermaid)
 
 ```mermaid
 classDiagram
@@ -229,8 +231,8 @@ classDiagram
     IRWAToken <|.. RWAToken
     IDividendDistributor <|.. DividendDistributor
 
-    IdentityRegistry --> IClaimTopicsRegistry : topics KYC
-    IdentityRegistry --> ITrustedIssuersRegistry : emisores
+    IdentityRegistry --> IClaimTopicsRegistry : KYC topics
+    IdentityRegistry --> ITrustedIssuersRegistry : issuers
     IdentityRegistry --> IIdentity : getClaim
     ModularCompliance --> IComplianceModule : AND canTransfer
     CountryRestrictModule --> IIdentityRegistry : investorCountry
@@ -239,51 +241,51 @@ classDiagram
     RWAToken --> ICompliance : canTransfer / hooks
     RWAToken ..> RWAErrors : IdentityNotVerified
     DividendDistributor --> IRWAToken : balanceOfAt / totalSupplyAt
-    DividendDistributor --> Distribution : almacena
-    DividendDistributor --> MockERC20 : USDC lab
+    DividendDistributor --> Distribution : stores
+    DividendDistributor --> MockERC20 : lab USDC
 ```
 
-## Responsabilidades
+## Responsibilities
 
-| Artefacto | Responsabilidad |
-|-----------|-----------------|
-| `Identity` | Claims lab (topic → issuer) gestionados por owner |
-| `IdentityRegistry` | Alta/baja; `isVerified` = registrado + claims de trusted issuers |
-| `ClaimTopicsRegistry` | Topics KYC/AML obligatorios |
-| `TrustedIssuersRegistry` | Emisores confiables + topics autorizados |
-| `ModularCompliance` | `bindToken` + AND de módulos + hooks solo desde token |
-| `CountryRestrictModule` | Bloquea `from`/`to` con país restringido |
+| Artifact | Responsibility |
+|----------|----------------|
+| `Identity` | Lab claims (topic → issuer) managed by the owner |
+| `IdentityRegistry` | Register/remove; `isVerified` = registered + claims from trusted issuers |
+| `ClaimTopicsRegistry` | Mandatory KYC/AML topics |
+| `TrustedIssuersRegistry` | Trusted issuers + authorized topics |
+| `ModularCompliance` | `bindToken` + AND of modules + hooks callable only by the token |
+| `CountryRestrictModule` | Blocks `from`/`to` with a restricted country |
 | `MaxBalanceModule` | Cap `balanceOf(to) + amount ≤ maxBalance` |
-| `RWAToken` | ERC-20 permissioned: KYC, pause, freeze, forced, snapshots, compliance |
-| `DividendDistributor` | create → deposit → claim pro-rata (CEI + reentrancy) |
-| `MockERC20` | USDC lab (6 decimals) |
-| `RWAErrors` | Custom errors del módulo |
+| `RWAToken` | Permissioned ERC-20: KYC, pause, freeze, forced, snapshots, compliance |
+| `DividendDistributor` | create → deposit → pro-rata claim (CEI + reentrancy guard) |
+| `MockERC20` | Lab USDC (6 decimals) |
+| `RWAErrors` | Module custom errors |
 
-## Modelo de permisos en transferencia
+## Transfer permission model
 
 ```
-  transfer / transferFrom  (y mint vía canTransfer(0,to,amount) si hay compliance)
+  transfer / transferFrom  (and mint via canTransfer(0,to,amount) if compliance is bound)
            │
            ▼
   ┌────────────────────┐
-  │ ¿paused?           │──sí──► TokenPaused
+  │ paused?            │──yes─► TokenPaused
   └─────────┬──────────┘
             │ no
             ▼
   ┌────────────────────┐
-  │ ¿from/to frozen?   │──sí──► WalletFrozen
+  │ from/to frozen?    │──yes─► WalletFrozen
   └─────────┬──────────┘
             │ no
             ▼
   ┌────────────────────┐
   │ isVerified(from/to)│──no──► IdentityNotVerified
   └─────────┬──────────┘
-            │ sí
+            │ yes
             ▼
   ┌────────────────────┐
   │ free balance OK?   │──no──► InsufficientUnfrozenBalance
   └─────────┬──────────┘
-            │ sí
+            │ yes
             ▼
   ┌────────────────────┐
   │ compliance bound?  │──no──► skip
@@ -295,31 +297,31 @@ classDiagram
       compliance.transferred / created / destroyed
 ```
 
-> `forcedTransfer`: bypassa pause, freeze e `isVerified(from)` y `canTransfer`; exige `isVerified(to)` y `to` no frozen; luego ejecuta hook `transferred` si hay compliance.
+> `forcedTransfer`: bypasses pause, freeze, `isVerified(from)` and `canTransfer`; requires `isVerified(to)` and `to` not frozen; then runs the `transferred` hook if compliance is bound.
 
 ## Roles
 
-| Rol | Mecanismo | Acciones |
-|-----|-----------|----------|
+| Role | Mechanism | Actions |
+|------|-----------|---------|
 | Admin | `DEFAULT_ADMIN_ROLE` | `addAgent`, `setIdentityRegistry`, `setCompliance` |
 | Agent | `AGENT_ROLE` | mint/burn, pause, freeze, snapshot, `forcedTransfer` |
-| Identity owner | `Ownable2Step` en registries | registerIdentity, topics, issuers |
-| Dividend manager | `Ownable2Step` en distributor | createDistribution, depositPayment |
-| Holder | — | transfer (si KYC+compliance), claim |
+| Identity owner | `Ownable2Step` on registries | registerIdentity, topics, issuers |
+| Dividend manager | `Ownable2Step` on distributor | createDistribution, depositPayment |
+| Holder | — | transfer (if KYC + compliance), claim |
 
-## Errores custom (implementados)
+## Custom errors (implemented)
 
-| Error | Uso |
-|-------|-----|
-| `IdentityNotVerified()` | transfer/mint/forced destino sin KYC |
-| `TransferNotCompliant()` | módulo compliance rechaza |
-| `WalletFrozen()` | freeze total en from/to (o destino de forced) |
-| `InsufficientUnfrozenBalance()` | saldo libre insuficiente / unfreeze excesivo |
-| `InsufficientBalance()` | forcedTransfer sin balance total |
-| `TokenPaused()` / `TokenNotPaused()` | pause / unpause inválido |
-| `UnauthorizedAgent()` | `forcedTransfer` sin `AGENT_ROLE` |
-| `AlreadyClaimed()` / `NothingToClaim()` | ciclo de dividendos |
-| `InvalidSnapshot()` / `InvalidDistribution()` | snapshot o id de distribución inválido |
-| `DistributionNotFunded()` / `AlreadyFunded()` | claim sin fondeo / doble deposit |
-| `ModuleAlreadyAdded()` / `ModuleNotFound()` | gestión de módulos |
-| `TokenAlreadyBound()` / `OnlyBoundToken()` / `OnlyCompliance()` | binding compliance |
+| Error | Usage |
+|-------|-------|
+| `IdentityNotVerified()` | transfer/mint/forced recipient without KYC |
+| `TransferNotCompliant()` | a compliance module rejects |
+| `WalletFrozen()` | full freeze on from/to (or forced recipient) |
+| `InsufficientUnfrozenBalance()` | insufficient free balance / excessive unfreeze |
+| `InsufficientBalance()` | forcedTransfer without enough total balance |
+| `TokenPaused()` / `TokenNotPaused()` | invalid pause / unpause |
+| `UnauthorizedAgent()` | `forcedTransfer` without `AGENT_ROLE` |
+| `AlreadyClaimed()` / `NothingToClaim()` | dividend lifecycle |
+| `InvalidSnapshot()` / `InvalidDistribution()` | invalid snapshot or distribution id |
+| `DistributionNotFunded()` / `AlreadyFunded()` | claim without funding / double deposit |
+| `ModuleAlreadyAdded()` / `ModuleNotFound()` | module management |
+| `TokenAlreadyBound()` / `OnlyBoundToken()` / `OnlyCompliance()` | compliance binding |

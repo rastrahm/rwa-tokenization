@@ -1,6 +1,8 @@
 # Auditoría SWC — RWA Tokenization & Compliance Protocols
 
-Verificación del protocolo RWA permissioned (módulo 19) contra el [SWC Registry](https://swcregistry.io/) (EIP-1470). Estilo alineado a [`18-liquid-staking-protocol/doc/SWC-AUDIT.md`](../../18-liquid-staking-protocol/doc/SWC-AUDIT.md) y [`01-erc20/doc/SWC-AUDIT.md`](../../01-erc20/doc/SWC-AUDIT.md).
+> 🇬🇧 [English version](./SWC-AUDIT-EN.md) · [Índice](./README.md)
+
+Verificación del protocolo RWA permissioned (módulo 19) contra el [SWC Registry](https://swcregistry.io/) (EIP-1470). Estilo alineado a [`18-liquid-staking-protocol/doc/SWC-AUDIT-ES.md`](../../18-liquid-staking-protocol/doc/SWC-AUDIT-ES.md) y [`01-erc20/doc/SWC-AUDIT-ES.md`](../../01-erc20/doc/SWC-AUDIT-ES.md).
 
 > **Nota:** El SWC Registry no se mantiene activamente desde ~2020. Complementar con [SCSVS](https://github.com/ComposableSecurity/SCSVS) y [EEA EthTrust](https://entethalliance.org/specs/ethtrust/).
 
@@ -22,7 +24,7 @@ Verificación del protocolo RWA permissioned (módulo 19) contra el [SWC Registr
 **Mocks (fuera de prod):** `MockERC20`  
 **Fecha:** 2026-09-15 (Fase SOLV / docs sync · cierre v1)  
 **Referencia tests:** `test/IdentityRegistry.t.sol`, `test/RWAToken.transfer.t.sol`, `test/FreezePause.t.sol`, `test/ForcedTransfer.t.sol`, `test/DividendDistributor.t.sol`, `test/ModularCompliance.t.sol`, `test/fuzz/TransferLocks.t.sol`, `test/invariant/RWASolvency.invariant.t.sol`, `test/gas/`  
-**Índice:** [`README.md`](./README.md) · README módulo: [`../README.md`](../README.md)
+**Índice:** [`README-ES.md`](./README-ES.md) · README módulo: [`../README-ES.md`](../README-ES.md)
 
 ---
 
@@ -158,5 +160,5 @@ Verificación del protocolo RWA permissioned (módulo 19) contra el [SWC Registr
 - [SWC Registry](https://swcregistry.io/)
 - [EIP-1470](https://eips.ethereum.org/EIPS/eip-1470)
 - [ERC-3643 / T-REX](https://gitlab.com/ERC-3643) (referencia de diseño educativa)
-- [`18-liquid-staking-protocol/doc/SWC-AUDIT.md`](../../18-liquid-staking-protocol/doc/SWC-AUDIT.md)
-- [`01-erc20/doc/SWC-AUDIT.md`](../../01-erc20/doc/SWC-AUDIT.md)
+- [`18-liquid-staking-protocol/doc/SWC-AUDIT-ES.md`](../../18-liquid-staking-protocol/doc/SWC-AUDIT-ES.md)
+- [`01-erc20/doc/SWC-AUDIT-ES.md`](../../01-erc20/doc/SWC-AUDIT-ES.md)

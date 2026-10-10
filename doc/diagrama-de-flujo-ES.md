@@ -1,5 +1,7 @@
 # Diagrama de flujo — Identity, transfers, freeze, compliance y dividendos
 
+> 🇬🇧 [English version](./diagrama-de-flujo-EN.md) · [Índice](./README.md)
+
 Flujos de decisión internos del protocolo RWA (módulo 19, **v1 implementado**).  
 **Sync:** 2026-09-15 · Fases **IDENT → SOLV** ✅ · 80 PASS.
 
