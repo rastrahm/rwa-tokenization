@@ -1,5 +1,7 @@
 # Optimización de gas — RWA Tokenization
 
+> 🇬🇧 [English version](./GAS-EN.md) · [Índice](./README.md)
+
 Regenerar:
 
 ```bash
@@ -51,4 +53,4 @@ forge snapshot --match-contract RWATokenGasTest
 
 - [`foundry.toml`](../foundry.toml)
 - [`test/gas/RWAToken.gas.t.sol`](../test/gas/RWAToken.gas.t.sol)
-- [SWC-AUDIT.md](./SWC-AUDIT.md)
+- [SWC-AUDIT-ES.md](./SWC-AUDIT-ES.md)

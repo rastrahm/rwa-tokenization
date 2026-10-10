@@ -1,5 +1,7 @@
 # Planificación — Módulo 19: RWA Tokenization & Compliance Protocols
 
+> 🇬🇧 [English version](./planificacion-EN.md) · [Índice](./README.md)
+
 **Estado:** Fases **IDENT → SOLV** ✅ (módulo v1 cerrado).  
 **Regla de avance:** la regla de autorización por fase aplicó durante la construcción; v1 ya no tiene fases pendientes.  
 **Suite:** `forge test` → **80 PASS**.  
@@ -71,21 +73,28 @@ Stack: **Foundry + Solidity `0.8.24`**. Frontend Next.js queda **fuera de alcanc
 
 ```
 19-rwa-tokenization/
-├── README.md
+├── README.md               # índice bilingüe
+├── README-ES.md
+├── README-EN.md
 ├── .cursorrules
 ├── .gitignore
 ├── .env.example
 ├── .gas-snapshot
 ├── foundry.toml
 ├── remappings.txt
-├── doc/
-│   ├── README.md
-│   ├── planificacion.md
-│   ├── diagrama-de-clases.md
-│   ├── diagrama-de-flujo.md
-│   ├── flujograma.md
-│   ├── SWC-AUDIT.md
-│   └── GAS.md
+├── doc/                    # cada doc en -ES.md y -EN.md
+│   ├── README.md           # índice bilingüe
+│   ├── README-{ES,EN}.md
+│   ├── planificacion-{ES,EN}.md
+│   ├── diagrama-de-clases-{ES,EN}.md
+│   ├── diagrama-de-flujo-{ES,EN}.md
+│   ├── flujograma-{ES,EN}.md
+│   ├── SWC-AUDIT-{ES,EN}.md
+│   ├── GAS-{ES,EN}.md
+│   └── DECISIONES-TECNICAS-{ES,EN}.md
+├── portfolio/
+│   ├── index.html
+│   └── i18n.js
 ├── src/
 │   ├── Identity.sol
 │   ├── IdentityRegistry.sol

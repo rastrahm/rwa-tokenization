@@ -1,5 +1,7 @@
 # Flujograma — Ciclo completo RWA Tokenization & Compliance
 
+> 🇬🇧 [English version](./flujograma-EN.md) · [Índice](./README.md)
+
 Flujo extremo a extremo (módulo 19, **v1 implementado**).  
 **Sync:** 2026-09-15 · Fases **IDENT → SOLV** ✅ · 80 PASS.
 
@@ -145,8 +147,8 @@ flowchart TD
 
 | Documento | Contenido |
 |-----------|-----------|
-| [diagrama-de-clases.md](./diagrama-de-clases.md) | Contratos, interfaces, módulos (API real) |
-| [diagrama-de-flujo.md](./diagrama-de-flujo.md) | Decisiones internas por función |
-| [planificacion.md](./planificacion.md) | Fases IDENT→SOLV cerradas |
-| [SWC-AUDIT.md](./SWC-AUDIT.md) | Matriz SWC-100–136 |
-| [GAS.md](./GAS.md) | Baseline gas |
+| [diagrama-de-clases-ES.md](./diagrama-de-clases-ES.md) | Contratos, interfaces, módulos (API real) |
+| [diagrama-de-flujo-ES.md](./diagrama-de-flujo-ES.md) | Decisiones internas por función |
+| [planificacion-ES.md](./planificacion-ES.md) | Fases IDENT→SOLV cerradas |
+| [SWC-AUDIT-ES.md](./SWC-AUDIT-ES.md) | Matriz SWC-100–136 |
+| [GAS-ES.md](./GAS-ES.md) | Baseline gas |
